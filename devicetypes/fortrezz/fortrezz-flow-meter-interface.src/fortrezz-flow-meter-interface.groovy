@@ -79,7 +79,8 @@ def parse(String description) {
 			results << createEvent( zwaveEvent(cmd) )
 		}
 	}
-	log.debug "\"$description\" parsed to ${results.inspect()}"
+	//log.debug "\"$description\" parsed to ${results.inspect()}"
+	log.debug "zwave parsed to ${results.inspect()}"
 	return results
 }
 
@@ -119,6 +120,7 @@ def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd)
     map.name = "gpm"
     map.value = cmd.scaledMeterValue - cmd.scaledPreviousMeterValue
     map.unit = "gpm"
+    sendDataToCloud(cmd.scaledMeterValue - cmd.scaledPreviousMeterValue)
     
 	map
 }
@@ -154,7 +156,7 @@ def zwaveEvent(physicalgraph.zwave.commands.alarmv2.AlarmReport cmd)
             map.value = "freezing"
         }
     }
-    log.debug "alarmV2: $cmd"
+    //log.debug "alarmV2: $cmd"
     
 	map
 }
@@ -178,6 +180,29 @@ def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd) {
 def zwaveEvent(physicalgraph.zwave.Command cmd)
 {
 	log.debug "COMMAND CLASS: $cmd"
+}
+
+def sendDataToCloud(double data)
+{
+    def params = [
+        uri: "http://iot.swiftlet.technology:1880",
+        path: "/fmi",
+        body: [
+            id: device.id,
+            value: data
+        ]
+    ]
+
+    try {
+        httpPostJson(params) { resp ->
+            resp.headers.each {
+                log.debug "${it.name} : ${it.value}"
+            }
+            //log.debug "response contentType: ${resp.    contentType}"
+        }
+    } catch (e) {
+        log.debug "something went wrong: $e"
+    }
 }
 
 def getTemperature(value) {
