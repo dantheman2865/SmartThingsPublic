@@ -216,6 +216,26 @@ def zwaveEvent(physicalgraph.zwave.commands.alarmv2.AlarmReport cmd)
             sendAlarm("tempFreezing")
         }
     }
+    else if (cmd.zwaveAlarmType == 5) // Water Alarm
+    {
+    	map.name = "waterState"
+        if (cmd.zwaveAlarmEvent == 0) // Normal
+        {
+            map.value = "none"
+        }
+        else if (cmd.zwaveAlarmEvent == 6) // Flow Detected
+        {
+        	if(cmd.eventParameter[0] == 2)
+            {
+                map.value = "flow"
+            }
+            else if(cmd.eventParameter[0] == 3)
+            {
+            	map.value = "overflow"
+                sendAlarm("waterOverflow")
+            }
+        }
+    }
     //log.debug "alarmV2: $cmd"
     
 	map
