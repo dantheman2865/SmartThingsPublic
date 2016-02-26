@@ -22,6 +22,7 @@ metadata {
         capability "Sensor"
         
         attribute "gpm", "number"
+        attribute "alarmState", "string"
 
 	    fingerprint deviceId: "0x2101", inClusters: "0x5E, 0x86, 0x72, 0x5A, 0x73, 0x71, 0x85, 0x59, 0x32, 0x31, 0x70, 0x80, 0x7A"
 	}
@@ -158,6 +159,7 @@ def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelR
 	        map.value = "none"
         } else if(cmd.sensorValue[0] == 0xFF) {
 	        map.value = "overflow"
+            sendAlarm("waterOverflow")
         }
 	}
 	map
@@ -183,10 +185,17 @@ def zwaveEvent(physicalgraph.zwave.commands.alarmv2.AlarmReport cmd)
         if (cmd.zwaveAlarmEvent == 2) // AC Mains Disconnected
         {
             map.value = "disconnected"
+            sendAlarm("acMainsDisconnected")
         }
         else if (cmd.zwaveAlarmEvent == 3) // AC Mains Reconnected
         {
             map.value = "reconnected"
+            sendAlarm("acMainsReconnected")
+        }
+        else if (cmd.zwaveAlarmEvent == 0x0B) // Replace Battery Now
+        {
+            map.value = "reconnected"
+            sendAlarm("replaceBatteryNow")
         }
     }
     else if (cmd.zwaveAlarmType == 4) // Heat Alarm
@@ -199,10 +208,12 @@ def zwaveEvent(physicalgraph.zwave.commands.alarmv2.AlarmReport cmd)
         else if (cmd.zwaveAlarmEvent == 1) // Overheat
         {
             map.value = "overheated"
+            sendAlarm("tempOverheated")
         }
         else if (cmd.zwaveAlarmEvent == 5) // Underheat
         {
             map.value = "freezing"
+            sendAlarm("tempFreezing")
         }
     }
     //log.debug "alarmV2: $cmd"
@@ -294,5 +305,10 @@ private doRequest(uri, type, success) {
   else if(type == "get") {
     httpGet(uri, success)
   }
+}
+
+def sendAlarm(text)
+{
+	sendEvent(name: "alarmState", value: text, descriptionText: text, displayed: false)
 }
 
