@@ -31,7 +31,7 @@ metadata {
 	}
 
 	tiles(scale: 2) {
-    	carouselTile("flowHistory", "device.image", width: 6, height: 4) { }
+    	carouselTile("flowHistory", "device.image", width: 6, height: 3) { }
 		valueTile("battery", "device.battery", inactiveLabel: false, width: 2, height: 2) {
 			state "battery", label:'${currentValue}%\nBattery', unit:""
 		}
@@ -62,8 +62,17 @@ metadata {
 			state "freezing", label:'Freezing', icon:"st.alarm.temperature.freeze", backgroundColor:"#2eb82e"
 			state "overheated", label:'Overheated', icon:"st.alarm.temperature.overheat", backgroundColor:"#F80000"
 		}
+        standardTile("take1", "device.image", width: 2, height: 2, canChangeIcon: false, inactiveLabel: true, canChangeBackground: false, decoration: "flat") {
+            state "take", label: "Update Chart", action: "Image Capture.take", nextState:"taking"
+        }
+        standardTile("take7", "device.image", width: 2, height: 1, canChangeIcon: false, inactiveLabel: true, canChangeBackground: false, decoration: "flat") {
+            state "take", label: "Chart 7 days", action: "Image Capture.take7", nextState:"taking"
+        }
+        standardTile("take28", "device.image", width: 2, height: 1, canChangeIcon: false, inactiveLabel: true, canChangeBackground: false, decoration: "flat") {
+            state "take", label: "Chart 4 weeks", action: "Image Capture.take28", nextState:"taking"
+        }
 		main (["waterState"])
-		details(["flowHistory", "battery", "temperature", "powerState", "waterState", "heatState"])
+		details(["flowHistory", "take1", "battery", "temperature", "powerState", "waterState", "heatState"])
 	}
     
 }
@@ -84,10 +93,50 @@ def parse(String description) {
 	return results
 }
 
-// handle commands
 def take() {
+	take1()
+}
+
+def take1() {
+	log.debug "Executing 'take1'"
+
+    api("24hrs", "") {
+        log.debug("Image captured")
+
+        if(it.headers.'Content-Type'.contains("image/png")) {
+            if(it.data) {
+                storeImage(getPictureName("24hrs"), it.data)
+            }
+        }
+    }
+}
+
+def take7() {
 	log.debug "Executing 'take'"
-	// TODO: handle 'take' command
+
+    api("7days", "") {
+        log.debug("Image captured")
+
+        if(it.headers.'Content-Type'.contains("image/png")) {
+            if(it.data) {
+                storeImage(getPictureName("7days"), it.data)
+            }
+        }
+    }
+}
+
+def take28() {
+	log.debug "Executing 'take'"
+
+    api("4weeks", "") {
+        log.debug("Image captured")
+
+        if(it.headers.'Content-Type'.contains("image/png")) {
+            if(it.data) {
+                storeImage(getPictureName("4weeks"), it.data)
+            }
+        }
+    }
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd)
@@ -196,9 +245,9 @@ def sendDataToCloud(double data)
     try {
         httpPostJson(params) { resp ->
             resp.headers.each {
-                log.debug "${it.name} : ${it.value}"
+                //log.debug "${it.name} : ${it.value}"
             }
-            //log.debug "response contentType: ${resp.    contentType}"
+            log.debug "response contentType: ${resp.    contentType}"
         }
     } catch (e) {
         log.debug "something went wrong: $e"
@@ -212,3 +261,38 @@ def getTemperature(value) {
         return Math.round(celsiusToFahrenheit(value))
     }
 }
+
+private getPictureName(category) {
+  //def pictureUuid = device.id.toString().replaceAll('-', '')
+  def pictureUuid = java.util.UUID.randomUUID().toString().replaceAll('-', '')
+
+  def name = "image" + "_$pictureUuid" + "_" + category + ".png"
+  log.debug name
+  name
+}
+
+def api(method, args = [], success = {}) {
+  def methods = [
+    //"snapshot":        [uri: "http://${ip}:${port}/snapshot.cgi${login()}&${args}",        type: "post"],
+    "24hrs":      [uri: "http://iot.swiftlet.technology/fortrezz/chart.php?uuid=${device.id}&tz=${location.timeZone.ID}&type=1", type: "get"],
+    "7days":      [uri: "http://iot.swiftlet.technology/fortrezz/chart.php?uuid=${device.id}&tz=${location.timeZone.ID}&type=2", type: "get"],
+    "4weeks":     [uri: "http://iot.swiftlet.technology/fortrezz/chart.php?uuid=${device.id}&tz=${location.timeZone.ID}&type=3", type: "get"],
+  ]
+
+  def request = methods.getAt(method)
+
+  doRequest(request.uri, request.type, success)
+}
+
+private doRequest(uri, type, success) {
+  log.debug(uri)
+
+  if(type == "post") {
+    httpPost(uri , "", success)
+  }
+
+  else if(type == "get") {
+    httpGet(uri, success)
+  }
+}
+
