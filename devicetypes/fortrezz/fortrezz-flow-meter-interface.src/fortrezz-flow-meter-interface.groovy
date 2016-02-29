@@ -60,9 +60,9 @@ metadata {
 			state "disconnected", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Disconnected-64.png", backgroundColor:"#cc0000"
 		}
 		standardTile("waterState", "device.waterState", width: 2, height: 2, canChangeIcon: true) {
-			state "none", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Water-64.png", backgroundColor:"#cccccc", label: "No Flow"
-			state "flow", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Water-64.png", backgroundColor:"#53a7c0", label: "Flow"
-			state "overflow", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Water-64.png", backgroundColor:"#cc0000", label: "High Flow"
+			state "none", icon:"http://cdn.device-icons.smartthings.com/Weather/weather12-icn@2x.png", backgroundColor:"#cccccc", label: "No Flow"
+			state "flow", icon:"http://cdn.device-icons.smartthings.com/Weather/weather12-icn@2x.png", backgroundColor:"#53a7c0", label: "Flow"
+			state "overflow", icon:"http://cdn.device-icons.smartthings.com/Weather/weather12-icn@2x.png", backgroundColor:"#cc0000", label: "High Flow"
 		}
 		standardTile("heatState", "device.heatState", width: 2, height: 2) {
 			state "normal", label:'Normal', icon:"st.alarm.temperature.normal", backgroundColor:"#ffffff"
