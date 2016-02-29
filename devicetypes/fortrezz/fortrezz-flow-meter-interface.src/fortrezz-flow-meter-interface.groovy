@@ -23,6 +23,9 @@ metadata {
         
         attribute "gpm", "number"
         attribute "alarmState", "string"
+        attribute "chartMode", "string"
+        
+        command "chartMode"
 
 	    fingerprint deviceId: "0x2101", inClusters: "0x5E, 0x86, 0x72, 0x5A, 0x73, 0x71, 0x85, 0x59, 0x32, 0x31, 0x70, 0x80, 0x7A"
 	}
@@ -49,31 +52,33 @@ metadata {
                 ]
             )
         }
+        valueTile("gpm", "device.gpm", inactiveLabel: false, width: 2, height: 2) {
+			state "gpm", label:'${currentValue}gpm', unit:""
+		}
 		standardTile("powerState", "device.powerState", width: 2, height: 2) {
 			state "reconnected", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Connected-64.png", backgroundColor:"#cccccc"
 			state "disconnected", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Disconnected-64.png", backgroundColor:"#cc0000"
 		}
 		standardTile("waterState", "device.waterState", width: 2, height: 2, canChangeIcon: true) {
-			state "none", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Ok-64.png", backgroundColor:"#cccccc"
-			state "flow", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Ok-64.png", backgroundColor:"#53a7c0"
-			state "overflow", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Attention-64.png", backgroundColor:"#cc0000"
+			state "none", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Water-64.png", backgroundColor:"#cccccc", label: "No Flow"
+			state "flow", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Water-64.png", backgroundColor:"#53a7c0", label: "Flow"
+			state "overflow", icon:"http://swiftlet.technology/wp-content/uploads/2016/02/Water-64.png", backgroundColor:"#cc0000", label: "High Flow"
 		}
 		standardTile("heatState", "device.heatState", width: 2, height: 2) {
 			state "normal", label:'Normal', icon:"st.alarm.temperature.normal", backgroundColor:"#ffffff"
 			state "freezing", label:'Freezing', icon:"st.alarm.temperature.freeze", backgroundColor:"#2eb82e"
 			state "overheated", label:'Overheated', icon:"st.alarm.temperature.overheat", backgroundColor:"#F80000"
 		}
-        standardTile("take1", "device.image", width: 2, height: 2, canChangeIcon: false, inactiveLabel: true, canChangeBackground: false, decoration: "flat") {
-            state "take", label: "Update Chart", action: "Image Capture.take", nextState:"taking"
+        valueTile("take1", "device.image", width: 2, height: 2, canChangeIcon: false, inactiveLabel: true, canChangeBackground: false, decoration: "flat") {
+            state "take", label: "", action: "Image Capture.take", nextState:"taking", icon: "st.secondary.refresh"
         }
-        standardTile("take7", "device.image", width: 2, height: 1, canChangeIcon: false, inactiveLabel: true, canChangeBackground: false, decoration: "flat") {
-            state "take", label: "Chart 7 days", action: "Image Capture.take7", nextState:"taking"
-        }
-        standardTile("take28", "device.image", width: 2, height: 1, canChangeIcon: false, inactiveLabel: true, canChangeBackground: false, decoration: "flat") {
-            state "take", label: "Chart 4 weeks", action: "Image Capture.take28", nextState:"taking"
-        }
+		valueTile("chartMode", "device.chartMode", width: 2, height: 2, canChangeIcon: false, canChangeBackground: false, decoration: "flat") {
+			state "day", label:'Chart View:\n24 Hours\n(press to change)', nextState: "week", action: 'chartMode'
+			state "week", label:'Chart View:\n7 Days\n(press to change)', nextState: "month", action: 'chartMode'
+			state "month", label:'Chart View:\n4 Weeks\n(press to change)', nextState: "day", action: 'chartMode'
+		}
 		main (["waterState"])
-		details(["flowHistory", "take1", "battery", "temperature", "powerState", "waterState", "heatState"])
+		details(["flowHistory", "take1", "battery", "temperature", "gpm", "waterState", "chartMode"])
 	}
     
 }
@@ -95,12 +100,46 @@ def parse(String description) {
 }
 
 def take() {
-	take1()
+	def mode = device.currentValue("chartMode")
+    if(mode == "day")
+    {
+    	take1()
+    }
+    else if(mode == "week")
+    {
+    	take7()
+    }
+    else if(mode == "month")
+    {
+    	take28()
+    }
+}
+
+def chartMode(string) {
+	def state = device.currentValue("chartMode")
+    def tempValue = ""
+	switch(state)
+    {
+    	case "day":
+        	tempValue = "week"
+            break
+        
+        case "week":
+        	tempValue = "month"
+            break
+            
+        case "month":
+        	tempValue = "day"
+            break
+            
+        default:
+        	tempValue = "day"
+            break
+    }
+	sendEvent(name: "chartMode", value: tempValue)
 }
 
 def take1() {
-	log.debug "Executing 'take1'"
-
     api("24hrs", "") {
         log.debug("Image captured")
 
@@ -113,8 +152,6 @@ def take1() {
 }
 
 def take7() {
-	log.debug "Executing 'take'"
-
     api("7days", "") {
         log.debug("Image captured")
 
@@ -127,8 +164,6 @@ def take7() {
 }
 
 def take28() {
-	log.debug "Executing 'take'"
-
     api("4weeks", "") {
         log.debug("Image captured")
 
@@ -298,7 +333,6 @@ private getPictureName(category) {
   def pictureUuid = java.util.UUID.randomUUID().toString().replaceAll('-', '')
 
   def name = "image" + "_$pictureUuid" + "_" + category + ".png"
-  log.debug name
   name
 }
 
