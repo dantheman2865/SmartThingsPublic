@@ -24,6 +24,8 @@ metadata {
         attribute "gpm", "number"
         attribute "alarmState", "string"
         attribute "chartMode", "string"
+        attribute "lastThreshhold", "number"
+
         
         command "chartMode"
 
@@ -33,6 +35,12 @@ metadata {
 	simulator {
 		// TODO: define status and reply messages here
 	}
+    
+    preferences {
+       input "gallonThreshhold", "number", title: "High Flow Rate Threshhold",
+              description: "Flow rate (in gpm) that will trigger a notification.", defaultValue: 5,
+              required: false, displayDuringSetup: true
+    }
 
 	tiles(scale: 2) {
     	carouselTile("flowHistory", "device.image", width: 6, height: 3) { }
@@ -95,6 +103,10 @@ def parse(String description) {
 		}
 	}
 	//log.debug "\"$description\" parsed to ${results.inspect()}"
+    if(gallonThreshhold != device.currentValue("lastThreshhold"))
+    {
+    	results << setThreshhold(gallonThreshhold)
+    }
 	log.debug "zwave parsed to ${results.inspect()}"
 	return results
 }
@@ -137,6 +149,7 @@ def chartMode(string) {
             break
     }
 	sendEvent(name: "chartMode", value: tempValue)
+    take()
 }
 
 def take1() {
@@ -366,3 +379,13 @@ def sendAlarm(text)
 	sendEvent(name: "alarmState", value: text, descriptionText: text, displayed: false)
 }
 
+def setThreshhold(rate)
+{
+	log.debug "Setting Threshhold to ${rate}"
+    
+    def event = createEvent(name: "lastThreshhold", value: rate, displayed: false)
+    def cmds = []
+    cmds << zwave.configurationV2.configurationSet(configurationValue: [Math.round(rate*10)], parameterNumber: 5, size: 1).format()
+    sendEvent(event)
+    response(cmds) // return a list containing the event and the result of response()
+}
