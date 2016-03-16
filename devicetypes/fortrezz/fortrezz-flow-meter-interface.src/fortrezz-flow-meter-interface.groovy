@@ -81,12 +81,12 @@ metadata {
             state "take", label: "", action: "Image Capture.take", nextState:"taking", icon: "st.secondary.refresh"
         }
 		valueTile("chartMode", "device.chartMode", width: 2, height: 2, canChangeIcon: false, canChangeBackground: false, decoration: "flat") {
-			state "day", label:'Chart View:\n24 Hours\n(press to change)', nextState: "week", action: 'chartMode'
-			state "week", label:'Chart View:\n7 Days\n(press to change)', nextState: "month", action: 'chartMode'
-			state "month", label:'Chart View:\n4 Weeks\n(press to change)', nextState: "day", action: 'chartMode'
+			state "day", label:'24 Hours\n(press to change)', nextState: "week", action: 'chartMode'
+			state "week", label:'7 Days\n(press to change)', nextState: "month", action: 'chartMode'
+			state "month", label:'4 Weeks\n(press to change)', nextState: "day", action: 'chartMode'
 		}
 		main (["waterState"])
-		details(["flowHistory", "take1", "battery", "temperature", "gpm", "waterState", "chartMode"])
+		details(["flowHistory", "chartMode", "take1", "temperature", "gpm", "waterState", "battery"])
 	}
     
 }
