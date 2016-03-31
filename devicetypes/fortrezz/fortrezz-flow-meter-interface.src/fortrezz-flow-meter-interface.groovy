@@ -22,12 +22,14 @@ metadata {
         capability "Sensor"
         
         attribute "gpm", "number"
+        attribute "cumulative", "number"
         attribute "alarmState", "string"
         attribute "chartMode", "string"
         attribute "lastThreshhold", "number"
 
         
         command "chartMode"
+        command "zero"
 
 	    fingerprint deviceId: "0x2101", inClusters: "0x5E, 0x86, 0x72, 0x5A, 0x73, 0x71, 0x85, 0x59, 0x32, 0x31, 0x70, 0x80, 0x7A"
 	}
@@ -313,8 +315,8 @@ def zwaveEvent(physicalgraph.zwave.Command cmd)
 def sendDataToCloud(double data)
 {
     def params = [
-        uri: "http://iot.swiftlet.technology:1880",
-        path: "/fmi",
+        uri: "https://iot.swiftlet.technology",
+        path: "/fortrezz/post.php",
         body: [
             id: device.id,
             value: data
@@ -326,7 +328,7 @@ def sendDataToCloud(double data)
             resp.headers.each {
                 //log.debug "${it.name} : ${it.value}"
             }
-            log.debug "response contentType: ${resp.    contentType}"
+            log.debug "response: ${resp.data}"
         }
     } catch (e) {
         log.debug "something went wrong: $e"
@@ -352,9 +354,9 @@ private getPictureName(category) {
 def api(method, args = [], success = {}) {
   def methods = [
     //"snapshot":        [uri: "http://${ip}:${port}/snapshot.cgi${login()}&${args}",        type: "post"],
-    "24hrs":      [uri: "http://iot.swiftlet.technology/fortrezz/chart.php?uuid=${device.id}&tz=${location.timeZone.ID}&type=1", type: "get"],
-    "7days":      [uri: "http://iot.swiftlet.technology/fortrezz/chart.php?uuid=${device.id}&tz=${location.timeZone.ID}&type=2", type: "get"],
-    "4weeks":     [uri: "http://iot.swiftlet.technology/fortrezz/chart.php?uuid=${device.id}&tz=${location.timeZone.ID}&type=3", type: "get"],
+    "24hrs":      [uri: "https://iot.swiftlet.technology/fortrezz/chart.php?uuid=${device.id}&tz=${location.timeZone.ID}&type=1", type: "get"],
+    "7days":      [uri: "https://iot.swiftlet.technology/fortrezz/chart.php?uuid=${device.id}&tz=${location.timeZone.ID}&type=2", type: "get"],
+    "4weeks":     [uri: "https://iot.swiftlet.technology/fortrezz/chart.php?uuid=${device.id}&tz=${location.timeZone.ID}&type=3", type: "get"],
   ]
 
   def request = methods.getAt(method)
