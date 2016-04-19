@@ -20,6 +20,7 @@ metadata {
 		capability "Image Capture"
 		capability "Temperature Measurement"
         capability "Sensor"
+        capability "Water Sensor"
         
         attribute "gpm", "number"
         attribute "cumulative", "number"
@@ -30,6 +31,7 @@ metadata {
         
         command "chartMode"
         command "zero"
+        command "setHighFlowLevel", ["number"]
 
 	    fingerprint deviceId: "0x2101", inClusters: "0x5E, 0x86, 0x72, 0x5A, 0x73, 0x71, 0x85, 0x59, 0x32, 0x31, 0x70, 0x80, 0x7A"
 	}
@@ -39,9 +41,7 @@ metadata {
 	}
     
     preferences {
-       input "gallonThreshhold", "number", title: "High Flow Rate Threshhold",
-              description: "Flow rate (in gpm) that will trigger a notification.", defaultValue: 5,
-              required: false, displayDuringSetup: true
+       //input "gallonThreshhold", "number", title: "High Flow Rate Threshhold", description: "Flow rate (in gpm) that will trigger a notification.", defaultValue: 5, required: false, displayDuringSetup: true
     }
 
 	tiles(scale: 2) {
@@ -87,8 +87,11 @@ metadata {
 			state "week", label:'7 Days\n(press to change)', nextState: "month", action: 'chartMode'
 			state "month", label:'4 Weeks\n(press to change)', nextState: "day", action: 'chartMode'
 		}
+		valueTile("zeroTile", "device.zero", width: 2, height: 2, canChangeIcon: false, canChangeBackground: false, decoration: "flat") {
+			state "zero", label:'Zero', action: 'zero'
+		}
 		main (["waterState"])
-		details(["flowHistory", "chartMode", "take1", "temperature", "gpm", "waterState", "battery"])
+		details(["flowHistory", "chartMode", "take1", "temperature", "gpm", "waterState", "battery", "zeroTile"])
 	}
     
 }
@@ -111,6 +114,11 @@ def parse(String description) {
     }
 	log.debug "zwave parsed to ${results.inspect()}"
 	return results
+}
+
+def setHighFlowLevel(level)
+{
+	setThreshhold(level)
 }
 
 def take() {
@@ -190,8 +198,18 @@ def take28() {
     }
 }
 
+def zero()
+{
+	delayBetween([
+		zwave.meterV3.meterReset().format(),
+        zwave.meterV3.meterGet().format(),
+        zwave.firmwareUpdateMdV2.firmwareMdGet().format(),
+    ], 100)
+}
+
 def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd)
 {
+	log.debug cmd
 	def map = [:]
 	if(cmd.sensorType == 1) {
 		map = [name: "temperature"]
@@ -205,10 +223,13 @@ def zwaveEvent(physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelR
     	map = [name: "waterState"]
         if(cmd.sensorValue[0] == 0x80) {
         	map.value = "flow"
+            sendEvent(name: "water", value: "dry")
         } else if(cmd.sensorValue[0] == 0x00) {
 	        map.value = "none"
+            sendEvent(name: "water", value: "dry")
         } else if(cmd.sensorValue[0] == 0xFF) {
 	        map.value = "overflow"
+            sendEvent(name: "water", value: "wet")
             sendAlarm("waterOverflow")
         }
 	}
@@ -219,10 +240,11 @@ def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd)
 {
 	def map = [:]
     map.name = "gpm"
-    map.value = cmd.scaledMeterValue - cmd.scaledPreviousMeterValue
+    def delta = cmd.scaledMeterValue - cmd.scaledPreviousMeterValue
+    map.value = delta
     map.unit = "gpm"
-    sendDataToCloud(cmd.scaledMeterValue - cmd.scaledPreviousMeterValue)
-    
+    sendDataToCloud(delta)
+    sendEvent(name: "cumulative", value: cmd.scaledMeterValue, displayed: false, unit: "gal")
 	map
 }
 
@@ -328,7 +350,7 @@ def sendDataToCloud(double data)
             resp.headers.each {
                 //log.debug "${it.name} : ${it.value}"
             }
-            log.debug "response: ${resp.data}"
+            log.debug "query response: ${resp.data}"
         }
     } catch (e) {
         log.debug "something went wrong: $e"
