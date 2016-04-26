@@ -76,6 +76,10 @@ def alarmHandler(evt) {
         {
         	msg = "$alarm: Replace AA Batteries Immediately."
         }
+        else if(evt.value == "batteryReplaced")
+        {
+        	msg = "$alarm: AA Batteries Replaced."
+        }
         else if(evt.value == "tempOverheated")
         {
         	msg = "$alarm: High Temperature Threshhold Exceeded."
