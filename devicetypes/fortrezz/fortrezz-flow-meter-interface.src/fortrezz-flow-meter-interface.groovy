@@ -1,7 +1,7 @@
 /**
  *  FortrezZ Flow Meter Interface
  *
- *  Copyright 2016 Daniel Kurin
+ *  Copyright 2016 FortrezZ, LLC
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  *  in compliance with the License. You may obtain a copy of the License at:
@@ -41,7 +41,7 @@ metadata {
 	}
     
     preferences {
-       input "gallonThreshhold", "number", title: "High Flow Rate Threshhold", description: "Flow rate (in gpm) that will trigger a notification.", defaultValue: 5, required: false, displayDuringSetup: true
+       input "gallonThreshhold", "decimal", title: "High Flow Rate Threshhold", description: "Flow rate (in gpm) that will trigger a notification.", defaultValue: 5, required: false, displayDuringSetup: true
     }
 
 	tiles(scale: 2) {
@@ -415,11 +415,11 @@ def sendAlarm(text)
 
 def setThreshhold(rate)
 {
-	log.debug "Setting Threshhold to ${rate}, with value${Math.round(rate*10)}"
+	log.debug "Setting Threshhold to ${rate}"
     
     def event = createEvent(name: "lastThreshhold", value: rate, displayed: false)
     def cmds = []
-    cmds << zwave.configurationV2.configurationSet(configurationValue: [Math.round(rate*10)], parameterNumber: 5, size: 1).format()
+    cmds << zwave.configurationV2.configurationSet(configurationValue: [(int)Math.round(rate*10)], parameterNumber: 5, size: 1).format()
     sendEvent(event)
     response(cmds) // return a list containing the event and the result of response()
 }
