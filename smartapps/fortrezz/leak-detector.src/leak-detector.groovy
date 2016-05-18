@@ -10,7 +10,7 @@ definition(
     author: "Daniel Kurin",
     description: "Child SmartApp for leak detector rules",
     category: "Green Living",
-    parent: "fortrezz:Smart for FortrezZ Water Meter",
+    parent: "fortrezz:FortrezZ Leak Detector",
     iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
     iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png",
     iconX3Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png")
@@ -28,6 +28,7 @@ preferences {
 }
 
 def prefsPage() {
+	def daysOfTheWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     dynamicPage(name: "prefsPage") {
         section("Set Leak Threshold by...") {
             input(name: "type", type: "enum", title: "Type...", submitOnChange: true, options: ruleTypes())
@@ -44,6 +45,12 @@ def prefsPage() {
                     section ("During") {
                         input(name: "modes", type: "mode", title: "select a mode(s)", multiple: true, required: true)
                     }
+                    section ("Action") {
+                    	input(name: "dev", type: "capability.actuator", title: "Choose a device to perform the action", required: false, submitOnChange: true)
+                        if (dev) {
+                        	input(name: "command", type: "enum", title: "Command...", submitOnChange: true, options: deviceCommands(dev))
+                    	}
+                    }
                     break
 
                 case "Time Period":
@@ -56,6 +63,18 @@ def prefsPage() {
                     }
                     section("...and...") {
                     	input(name: "endTime", type: "time", title: "End Time", required: true)
+                    }
+                    section("On these days") {
+                    	input(name: "days", type: "enum", title: "Days of the week", required: false, options: daysOfTheWeek, multiple: true)
+                    }
+                    section("In these modes") {
+                    	input(name: "modes", type: "mode", title: "System Modes", required: false, multiple: true)
+                    }
+                    section ("Action") {
+                    	input(name: "dev", type: "capability.actuator", title: "Choose a device to perform the action", required: false, submitOnChange: true)
+                        if (dev) {
+                        	input(name: "command", type: "enum", title: "Command...", submitOnChange: true, options: deviceCommands(dev))
+                    	}
                     }
                     break
 
@@ -70,29 +89,48 @@ def prefsPage() {
                     section("...and...") {
                     	input(name: "endTime", type: "time", title: "End Time", required: true)
                     }
+                    section("On these days") {
+                    	input(name: "days", type: "enum", title: "Days of the week", required: false, options: daysOfTheWeek, multiple: true)
+                    }
+                    section("In these modes") {
+                    	input(name: "modes", type: "mode", title: "System Modes", required: false, multiple: true)
+                    }
+                    section ("Action") {
+                    	input(name: "dev", type: "capability.actuator", title: "Choose a device to perform the action", required: false, submitOnChange: true)
+                        if (dev) {
+                        	input(name: "command", type: "enum", title: "Command...", submitOnChange: true, options: deviceCommands(dev))
+                    	}
+                    }
                     break
 
-                case "Constant Flow":
+                case "Continuous Flow":
                     section("Threshold settings") {
                         input(name: "ruleName", type: "text", title: "Rule Name", required: false)
-                    }
-                    section () {
 	                    input(name: "flowHours", type: "number", title: "Hours of constant flow", required: true, defaultValue: 2)
+                    }
+                    section("In these modes") {
+                    	input(name: "modes", type: "mode", title: "System Modes", required: false, multiple: true)
+                    }
+                    section ("Action") {
+                    	input(name: "dev", type: "capability.actuator", title: "Choose a device to perform the action", required: false, submitOnChange: true)
+                        if (dev) {
+                        	input(name: "command", type: "enum", title: "Command...", submitOnChange: true, options: deviceCommands(dev))
+                    	}
                     }
                     break
 
-                case "Valve Status":
+                case "Water Valve Status":
                     section("Threshold settings") {
                         input(name: "ruleName", type: "text", title: "Rule Name", required: false)
                         input(name: "gpm", type: "decimal", title: "GPM exceeds", required: true, defaultValue: 0.1)
                     }
-                    section ("If...") {
+                    section ("While...") {
                         input(name: "valve", type: "capability.valve", title: "Choose a valve", required: true)
                     }
                     section ("...is...") {
                         input(name: "valveStatus", type: "enum", title: "Status", options: ["Open","Closed"], required: true)
                     }
-                    break
+                   break
 
                 case "Switch Status":
                     section("Threshold settings") {
@@ -119,23 +157,41 @@ def ruleTypes() {
     types << "Mode"
     types << "Time Period"
     types << "Accumulated Flow"
-    types << "Constant Flow"
-    types << "Valve Status"
-    types << "Switch Status"
+    types << "Continuous Flow"
+    types << "Water Valve Status"
+    //types << "Switch Status"
     
     return types
 }
 
+def actionTypes() {
+	def types = []
+    types << [name: "Switch", capability: "capabilty.switch"]
+    types << [name: "Water Valve", capability: "capability.valve"]
+    
+    return types
+}
+
+def deviceCommands(dev)
+{
+	def cmds = []
+	dev.supportedCommands.each { command ->
+    	cmds << command.name
+    }
+    
+    return cmds
+}
+
 def installed() {
 	log.debug "Installed with settings: ${settings}"
-	app.updateLabel("${type}: ${ruleName ? ruleName : ""}")
+	app.updateLabel("${ruleName ? ruleName : ""} - ${type}")
     
 	initialize()
 }
 
 def updated() {
 	log.debug "Updated with settings: ${settings}"
-    app.updateLabel("${type}: ${ruleName ? ruleName : ""}")
+	app.updateLabel("${ruleName ? ruleName : ""} - ${type}")
 
 	unsubscribe()
 	initialize()
