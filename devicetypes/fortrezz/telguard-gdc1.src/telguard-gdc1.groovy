@@ -21,6 +21,7 @@ metadata {
 		capability "Contact Sensor"
 		capability "Refresh"
 		capability "Sensor"
+        capability "Switch"
 
         fingerprint deviceId: "0x1000", inClusters: "0x72, 0x86, 0x25"
 	}
@@ -43,7 +44,6 @@ metadata {
 			state("open", label:'${name}', action:"door control.close", icon:"st.doors.garage.garage-open", backgroundColor:"#ffa81e", nextState:"closing")
 			state("opening", label:'${name}', icon:"st.doors.garage.garage-opening", backgroundColor:"#ffe71e")
 			state("closing", label:'${name}', icon:"st.doors.garage.garage-closing", backgroundColor:"#ffe71e")
-			
 		}
 		standardTile("open", "device.door", inactiveLabel: false, decoration: "flat") {
 			state "default", label:'open', action:"door control.open", icon:"st.doors.garage.garage-opening"
@@ -54,6 +54,13 @@ metadata {
 		standardTile("refresh", "device.door", inactiveLabel: false, decoration: "flat") {
 			state "default", label:'', action:"refresh.refresh", icon:"st.secondary.refresh"
 		}
+        standardTile("switch", "device.switch", width: 2, height: 2, canChangeIcon: true) {
+            state "on", label:'${name}', action:"switch.off", icon:"st.switches.switch.off", backgroundColor:"#79b821", nextState:"turningOff"
+            state "off", label:'${name}', action:"switch.on", icon:"st.switches.switch.on", backgroundColor:"#ffffff", nextState:"turningOn"
+            state "turningOn", label:'${name}', action:"switch.off", icon:"st.switches.switch.off", backgroundColor:"#79b821", nextState:"turningOff"
+            state "turningOff", label:'${name}', action:"switch.on", icon:"st.switches.switch.on", backgroundColor:"#ffffff", nextState:"turningOn"
+            state "offline", label:'${name}', icon:"st.switches.switch.off", backgroundColor:"#ff0000"
+        }
 
 		main "toggle"
 		details(["toggle", "open", "close", "refresh"])
@@ -88,19 +95,32 @@ def close() {
 	zwave.basicV1.basicSet(value: 0x00).format()
 }
 
+def on() {
+	open()
+}
+
+def off() {
+	close()
+}
+
 def refresh() {
 	zwave.basicV1.basicGet().format()
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
 	def map = [name: "door"]
+    def map2 = [name: "switch"]
     if (cmd.value == 0xFF)
     {
     	map.value = "open"
+        map2.value = "on"
+        sendEvent(map2)
     }
     else if (cmd.value == 0x00)
     {
     	map.value = "closed"
+        map2.value = "off"
+        sendEvent(map2)
     }
     else
     {
@@ -112,13 +132,18 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
 
 def zwaveEvent(physicalgraph.zwave.commands.switchbinaryv1.SwitchBinaryReport cmd) {
 	def map = [name: "door"]
+    def map2 = [name: "switch"]
     if (cmd.value == 0xFF)
     {
     	map.value = "open"
+        map2.value = "on"
+        sendEvent(map2)
     }
     else if (cmd.value == 0x00)
     {
     	map.value = "closed"
+        map2.value = "off"
+        sendEvent(map2)
     }
     else
     {
