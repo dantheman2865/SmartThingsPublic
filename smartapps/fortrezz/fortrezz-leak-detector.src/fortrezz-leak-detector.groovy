@@ -10,9 +10,9 @@ definition(
     author: "Daniel Kurin",
     description: "Use the FortrezZ Water Meter to identify leaks in your home's water system.",
     category: "Green Living",
-    iconUrl: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience.png",
-    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png",
-    iconX3Url: "https://s3.amazonaws.com/smartapp-icons/Convenience/Cat-Convenience@2x.png")
+    iconUrl: "http://swiftlet.technology/wp-content/uploads/2016/05/logo-square-200-1.png",
+    iconX2Url: "http://swiftlet.technology/wp-content/uploads/2016/05/logo-square-500.png",
+    iconX3Url: "http://swiftlet.technology/wp-content/uploads/2016/05/logo-square.png")
 
 
 preferences {
@@ -22,7 +22,7 @@ preferences {
 def page2() {
     dynamicPage(name: "page2") {
         section("Choose a water meter to monitor:") {
-            input(name: "meter", type: "capability.energyMeter", title: "Water Meter", description: null, required: false, submitOnChange: true)
+            input(name: "meter", type: "capability.energyMeter", title: "Water Meter", description: null, required: true, submitOnChange: true)
         }
 
         if (meter) {
@@ -31,10 +31,24 @@ def page2() {
             }
         }
         
-        log.debug "there are ${childApps.size()} child smartapps"
-        childApps.each {child ->
-            log.debug "child app: ${child.settings()}"
+        section("Send notifications through...") {
+        	input(name: "pushNotification", type: "bool", title: "SmartThings App", required: false)
+        	input(name: "smsNotification", type: "bool", title: "Text Message (SMS)", submitOnChange: true, required: false)
+            if (smsNotification)
+            {
+            	input(name: "phone", type: "phone", title: "Phone number?", required: true)
+            }
+            input(name: "hoursBetweenNotifications", type: "number", title: "Hours between notifications", required: false)
         }
+
+		log.debug "there are ${childApps.size()} child smartapps"
+        def childRules = []
+        childApps.each {child ->
+            //log.debug "child ${child.id}: ${child.settings()}"
+            childRules << [id: child.id, rules: child.settings()]
+        }
+        state.rules = childRules
+        //log.debug("Child Rules: ${state.rules} w/ length ${state.rules.toString().length()}")
         log.debug "Parent Settings: ${settings}"
     }
 }
@@ -53,7 +67,121 @@ def updated() {
 }
 
 def initialize() {
-	// TODO: subscribe to attributes, devices, locations, etc.
+	subscribe(meter, "cumulative", gpmHandler)
+    log.debug("Subscribing to events")
 }
 
+def gpmHandler(evt) {
+	//Date Stuff
+   	def daysOfTheWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    def today = new Date()
+    today.clearTime()
+    Calendar c = Calendar.getInstance();
+    c.setTime(today);
+    int dow = c.get(Calendar.DAY_OF_WEEK);
+    def dowName = daysOfTheWeek[dow-1]
+    
+	def gpm = meter.latestValue("gpm")
+    log.debug "GPM Handler: [gpm: ${gpm}, cumulative: ${evt.value}]"
+    def rules = state.rules
+    rules.each { it ->
+        def r = it.rules
+        def childAppID = it.id
+    	log.debug("Rule: ${r}")
+    	switch (r.type) {
+            case "Mode":
+            	log.debug("Mode Test: ${location.currentMode} in ${r.modes}... ${findIn(r.modes, location.currentMode)}")
+                if (findIn(r.modes, location.currentMode))
+                {
+                	log.debug("Threshold:${r.gpm}, Value:${gpm}")
+                	if(gpm > r.gpm)
+                    {
+                    	sendNotification(r.ruleName, gpm)
+                        if(r.dev)
+                        {
+                        	log.debug("Child App: ${childAppID}")
+                        	def activityDevice = getChildById(childAppID)
+                            activityDevice.devAction(r.command)
+                        }
+                    }
+                }
+                break
+
+            case "Time Period":
+            	def trigger = []
+            	log.debug("Time Period Test: ${r}")
+            	if(timeOfDayIsBetween(r.startTime, r.endTime, new Date(), location.timeZone))
+                {
+                	trigger << true
+                	log.debug("Time is included")
+                    if(r.days)
+                    {
+                    	log.debug("Today: ${dowName}")
+                        if(findIn(r.days, dowName))
+                        {
+                        	log.debug("Today included")
+                            trigger << true
+                        }
+                        else
+                        {
+                        	log.debug("Today not included")
+                            trigger << false
+                        }
+                    }
+                    if(r.modes)
+                    {
+                    	
+                    }
+                }
+                log.debug("Result is: ${findIn(trigger, false)}")
+            	break
+
+            case "Accumulated Flow":
+            	break
+
+            case "Continuous Flow":
+            	break
+
+            case "Water Valve Status":
+            	break
+
+            case "Switch Status":
+            	break
+
+            default:
+                break
+        }
+    }
+}
+
+def sendNotification(String name, gpm)
+{
+	def msg = "Water Flow Warning ${name} is over threshold at ${gpm}gpm"
+    if (pushNotification)
+    {
+		sendPush(msg)
+    }
+    if (smsNotification) {
+        sendSms(phone, msg)
+    }
+}
+
+def getChildById(app)
+{
+	return childApps.find{ it.id == app }
+}
+
+def findIn(haystack, needle)
+{
+	def result = false
+	haystack.each { it ->
+    	log.debug("findIn: ${it} <- ${needle}")
+    	if (needle == it)
+        {
+        	//log.debug("Found needle in haystack")
+        	result = true
+        }
+    }
+    return result
+}
 // TODO: implement event handlers

@@ -39,8 +39,8 @@ def prefsPage() {
             switch (type) {
                 case "Mode":
                     section("Threshold settings") {
-                        input(name: "ruleName", type: "text", title: "Rule Name", required: false)
-                        input(name: "gpm", type: "decimal", title: "GPM exceeds", required: true)
+                        input(name: "ruleName", type: "text", title: "Rule Name", required: true)
+                        input(name: "gpm", type: "decimal", title: "GPM exceeds", required: true, defaultValue: 0.1)
                     }
                     section ("During") {
                         input(name: "modes", type: "mode", title: "select a mode(s)", multiple: true, required: true)
@@ -55,7 +55,7 @@ def prefsPage() {
 
                 case "Time Period":
                     section("Threshold settings") {
-                        input(name: "ruleName", type: "text", title: "Rule Name", required: false)
+                        input(name: "ruleName", type: "text", title: "Rule Name", required: true)
                         input(name: "gpm", type: "decimal", title: "GPM exceeds", required: true)
                     }
                     section("Between...") {
@@ -80,7 +80,7 @@ def prefsPage() {
 
                 case "Accumulated Flow":
                     section("Threshold settings") {
-                        input(name: "ruleName", type: "text", title: "Rule Name", required: false)
+                        input(name: "ruleName", type: "text", title: "Rule Name", required: true)
                         input(name: "gallons", type: "number", title: "Total Gallons exceeds", required: true)
                     }
                     section("Between...") {
@@ -105,8 +105,8 @@ def prefsPage() {
 
                 case "Continuous Flow":
                     section("Threshold settings") {
-                        input(name: "ruleName", type: "text", title: "Rule Name", required: false)
-	                    input(name: "flowHours", type: "number", title: "Hours of constant flow", required: true, defaultValue: 2)
+                        input(name: "ruleName", type: "text", title: "Rule Name", required: true)
+	                    input(name: "flowMinutes", type: "number", title: "Hours of constant flow", required: true, defaultValue: 60)
                     }
                     section("In these modes") {
                     	input(name: "modes", type: "mode", title: "System Modes", required: false, multiple: true)
@@ -121,7 +121,7 @@ def prefsPage() {
 
                 case "Water Valve Status":
                     section("Threshold settings") {
-                        input(name: "ruleName", type: "text", title: "Rule Name", required: false)
+                        input(name: "ruleName", type: "text", title: "Rule Name", required: true)
                         input(name: "gpm", type: "decimal", title: "GPM exceeds", required: true, defaultValue: 0.1)
                     }
                     section ("While...") {
@@ -134,7 +134,7 @@ def prefsPage() {
 
                 case "Switch Status":
                     section("Threshold settings") {
-                        input(name: "ruleName", type: "text", title: "Rule Name", required: false)
+                        input(name: "ruleName", type: "text", title: "Rule Name", required: true)
                         input(name: "gpm", type: "decimal", title: "GPM exceeds", required: true, defaultValue: 0.1)
                     }
                     section ("If...") {
@@ -198,7 +198,41 @@ def updated() {
 }
 
 def settings() {
-	return settings
+	def set = settings
+    if (set["dev"] != null)
+    {
+    	log.debug("dev set: ${set.dev}")
+    	set.dev = set.dev.id
+    }
+    if (set["valve"] != null)
+    {
+    	log.debug("valve set: ${set.valve}")
+    	set.valve = set.valve.id
+    }
+    log.debug(set)
+	return set
+}
+
+def devAction(action)
+{
+	if(dev)
+    {
+    	log.debug("device: ${dev}, action: ${action}")
+		dev."${action}"()
+    }
+}
+
+def isValveStatus(status)
+{
+	def result = false
+	if(valve)
+    {
+    	if(valve.contact == status)
+        {
+        	result = true
+        }
+    }
+    return result
 }
 
 def initialize() {
