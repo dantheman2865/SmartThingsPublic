@@ -42,6 +42,7 @@ metadata {
     
     preferences {
        input "gallonThreshhold", "decimal", title: "High Flow Rate Threshhold", description: "Flow rate (in gpm) that will trigger a notification.", defaultValue: 5, required: false, displayDuringSetup: true
+       input("registerEmail", type: "email", required: false, title: "Email Address", description: "Register your device with FortrezZ", displayDuringSetup: true)
     }
 
 	tiles(scale: 2) {
@@ -351,10 +352,12 @@ def sendDataToCloud(double data)
         path: "/fortrezz/post.php",
         body: [
             id: device.id,
-            value: data
+            value: data,
+            email: registerEmail
         ]
     ]
 
+	//log.debug("POST parameters: ${params}")
     try {
         httpPostJson(params) { resp ->
             resp.headers.each {
