@@ -213,10 +213,6 @@ def settings() {
 	return set
 }
 
-def name() {
-	return ruleName
-}
-
 def devAction(action)
 {
 	if(dev)

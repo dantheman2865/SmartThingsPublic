@@ -82,12 +82,13 @@ def gpmHandler(evt) {
     def dowName = daysOfTheWeek[dow-1]
     
 	def gpm = meter.latestValue("gpm")
-    log.debug "GPM Handler: [gpm: ${gpm}, cumulative: ${evt.value}]"
+    def cumulative = new BigDecimal(evt.value)
+    log.debug "GPM Handler: [gpm: ${gpm}, cumulative: ${cumulative}]"
     def rules = state.rules
     rules.each { it ->
         def r = it.rules
         def childAppID = it.id
-    	log.debug("Rule: ${r}")
+    	//log.debug("Rule: ${r}")
     	switch (r.type) {
             case "Mode":
             	log.debug("Mode Test: ${location.currentMode} in ${r.modes}... ${findIn(r.modes, location.currentMode)}")
@@ -99,7 +100,7 @@ def gpmHandler(evt) {
                     	sendNotification(childAppID, gpm)
                         if(r.dev)
                         {
-                        	log.debug("Child App: ${childAppID}")
+                        	//log.debug("Child App: ${childAppID}")
                         	def activityApp = getChildById(childAppID)
                             activityApp.devAction(r.command)
                         }
@@ -110,58 +111,66 @@ def gpmHandler(evt) {
             case "Time Period":
             	def trigger = []
             	log.debug("Time Period Test: ${r}")
-            	if(timeOfDayIsBetween(r.startTime, r.endTime, new Date(), location.timeZone))
+                def boolTime = timeOfDayIsBetween(r.startTime, r.endTime, new Date(), location.timeZone)
+                def boolDay = !r.days || findIn(r.days, dowName) // Truth Table of this mess: http://swiftlet.technology/wp-content/uploads/2016/05/IMG_20160523_150600.jpg
+                def boolMode = !r.modes || findIn(r.modes, location.currentMode)
+                
+            	if(boolTime && boolDay && boolMode)
                 {
-                	trigger << true
-                	log.debug("Time is included")
-                    if(r.days)
+                    if(gpm > r.gpm)
                     {
-                    	log.debug("Today: ${dowName}")
-                        if(findIn(r.days, dowName))
+                        sendNotification(childAppID, gpm)
+                        if(r.dev)
                         {
-                        	log.debug("Today included")
-                            trigger << true
-                        }
-                        else
-                        {
-                        	log.debug("Today not included")
-                            trigger << false
-                        }
-                    }
-                    if(r.modes)
-                    {
-                    	log.debug("Mode(s) are selected")
-                        if (findIn(r.modes, location.currentMode))
-                        {
-                        	log.debug("Current mode included")
-                            trigger << true
-                        }
-                        else
-                        {
-                        	log.debug("Current mode not included")
-                            trigger << false
-                        }
-                    }
-	                log.debug("Result is: ${findIn(trigger, false)}")
-                    if(!findIn(trigger, false)) // If all selected options are met
-                    {
-                        if(gpm > r.gpm)
-                        {
-    	                	sendNotification(childAppID, gpm)
-                            if(r.dev)
-                            {
-                                def activityApp = getChildById(childAppID)
-                                activityApp.devAction(r.command)
-                            }
+                            def activityApp = getChildById(childAppID)
+                            activityApp.devAction(r.command)
                         }
                     }
                 }
             	break
 
             case "Accumulated Flow":
+            	def trigger = []
+            	log.debug("Accumulated Flow Test: ${r}")
+                def boolTime = timeOfDayIsBetween(r.startTime, r.endTime, new Date(), location.timeZone)
+                def boolDay = !r.days || findIn(r.days, dowName) // Truth Table of this mess: http://swiftlet.technology/wp-content/uploads/2016/05/IMG_20160523_150600.jpg
+                def boolMode = !r.modes || findIn(r.modes, location.currentMode)
+                
+            	if(boolTime && boolDay && boolMode)
+                {
+                	def delta = 0
+                    if(state["accHistory${childAppID}"] != null)
+                    {
+                    	delta = cumulative - state["accHistory${childAppID}"]
+                    }
+                    else
+                    {
+                    	state["accHistory${childAppID}"] = cumulative
+                    }
+                	log.debug("Currently in specified time, delta from beginning of time period: ${delta}")
+                    
+                    if(delta > r.gallons)
+                    {
+                        sendNotification(childAppID, delta)
+                        if(r.dev)
+                        {
+                            def activityApp = getChildById(childAppID)
+                            activityApp.devAction(r.command)
+                        }
+                    }
+                }
+                else
+                {
+                	log.debug("Outside specified time, saving value")
+                    state["accHistory${childAppID}"] = cumulative
+                }
             	break
 
             case "Continuous Flow":
+                def events = meter.statesBetween("cumulative", timeToday(r.startTime, location.timeZone), timeToday(r.endTime, location.timeZone), [max: 100])
+                events.each { e ->
+                    //log.debug("Event ${e.name}: ${e.value} - ${e.date}")
+                }
             	break
 
             case "Water Valve Status":
@@ -188,8 +197,16 @@ def gpmHandler(evt) {
 
 def sendNotification(device, gpm)
 {
-	def name = getChildById(device).name()
-	def msg = "Water Flow Warning: \"${name}\" is over threshold at ${gpm}gpm"
+	def set = getChildById(device).settings()
+	def msg = ""
+    if(set.type == "Accumulated Flow")
+    {
+    	msg = "Water Flow Warning: \"${set.ruleName}\" is over threshold at ${gpm}gal"
+    }
+    else
+    {
+    	msg = "Water Flow Warning: \"${set.ruleName}\" is over threshold at ${gpm}gpm"
+    }
     log.debug(msg)
     if (pushNotification)
     {
