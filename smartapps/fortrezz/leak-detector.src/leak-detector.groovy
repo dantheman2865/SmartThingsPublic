@@ -213,6 +213,10 @@ def settings() {
 	return set
 }
 
+def name() {
+	return ruleName
+}
+
 def devAction(action)
 {
 	if(dev)
@@ -225,9 +229,10 @@ def devAction(action)
 def isValveStatus(status)
 {
 	def result = false
+    log.debug("Water Valve ${valve} has status ${valve.currentState("contact").value}, compared to ${status.toLowerCase()}")
 	if(valve)
     {
-    	if(valve.contact == status)
+    	if(valve.currentState("contact").value == status.toLowerCase())
         {
         	result = true
         }

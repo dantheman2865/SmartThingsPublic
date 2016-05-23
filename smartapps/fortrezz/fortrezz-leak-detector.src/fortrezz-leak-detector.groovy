@@ -96,12 +96,12 @@ def gpmHandler(evt) {
                 	log.debug("Threshold:${r.gpm}, Value:${gpm}")
                 	if(gpm > r.gpm)
                     {
-                    	sendNotification(r.ruleName, gpm)
+                    	sendNotification(childAppID, gpm)
                         if(r.dev)
                         {
                         	log.debug("Child App: ${childAppID}")
-                        	def activityDevice = getChildById(childAppID)
-                            activityDevice.devAction(r.command)
+                        	def activityApp = getChildById(childAppID)
+                            activityApp.devAction(r.command)
                         }
                     }
                 }
@@ -130,10 +130,32 @@ def gpmHandler(evt) {
                     }
                     if(r.modes)
                     {
-                    	
+                    	log.debug("Mode(s) are selected")
+                        if (findIn(r.modes, location.currentMode))
+                        {
+                        	log.debug("Current mode included")
+                            trigger << true
+                        }
+                        else
+                        {
+                        	log.debug("Current mode not included")
+                            trigger << false
+                        }
+                    }
+	                log.debug("Result is: ${findIn(trigger, false)}")
+                    if(!findIn(trigger, false)) // If all selected options are met
+                    {
+                        if(gpm > r.gpm)
+                        {
+    	                	sendNotification(childAppID, gpm)
+                            if(r.dev)
+                            {
+                                def activityApp = getChildById(childAppID)
+                                activityApp.devAction(r.command)
+                            }
+                        }
                     }
                 }
-                log.debug("Result is: ${findIn(trigger, false)}")
             	break
 
             case "Accumulated Flow":
@@ -143,7 +165,17 @@ def gpmHandler(evt) {
             	break
 
             case "Water Valve Status":
-            	break
+            	log.debug("Water Valve Test: ${r}")
+            	def child = getChildById(childAppID)
+                log.debug("Water Valve Child App: ${child.id}")
+                if(child.isValveStatus(r.valveStatus))
+                {
+                    if(gpm > r.gpm)
+                    {
+                        sendNotification(childAppID, gpm)
+                   }
+                }
+                break
 
             case "Switch Status":
             	break
@@ -154,9 +186,11 @@ def gpmHandler(evt) {
     }
 }
 
-def sendNotification(String name, gpm)
+def sendNotification(device, gpm)
 {
-	def msg = "Water Flow Warning ${name} is over threshold at ${gpm}gpm"
+	def name = getChildById(device).name()
+	def msg = "Water Flow Warning: \"${name}\" is over threshold at ${gpm}gpm"
+    log.debug(msg)
     if (pushNotification)
     {
 		sendPush(msg)
@@ -175,7 +209,7 @@ def findIn(haystack, needle)
 {
 	def result = false
 	haystack.each { it ->
-    	log.debug("findIn: ${it} <- ${needle}")
+    	//log.debug("findIn: ${it} <- ${needle}")
     	if (needle == it)
         {
         	//log.debug("Found needle in haystack")
