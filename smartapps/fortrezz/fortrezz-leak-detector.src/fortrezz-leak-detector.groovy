@@ -67,11 +67,12 @@ def updated() {
 }
 
 def initialize() {
-	subscribe(meter, "cumulative", gpmHandler)
+	subscribe(meter, "cumulative", cumulativeHandler)
+	subscribe(meter, "gpm", gpmHandler)
     log.debug("Subscribing to events")
 }
 
-def gpmHandler(evt) {
+def cumulativeHandler(evt) {
 	//Date Stuff
    	def daysOfTheWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     def today = new Date()
@@ -83,7 +84,7 @@ def gpmHandler(evt) {
     
 	def gpm = meter.latestValue("gpm")
     def cumulative = new BigDecimal(evt.value)
-    log.debug "GPM Handler: [gpm: ${gpm}, cumulative: ${cumulative}]"
+    log.debug "Cumulative Handler: [gpm: ${gpm}, cumulative: ${cumulative}]"
     def rules = state.rules
     rules.each { it ->
         def r = it.rules
@@ -109,7 +110,6 @@ def gpmHandler(evt) {
                 break
 
             case "Time Period":
-            	def trigger = []
             	log.debug("Time Period Test: ${r}")
                 def boolTime = timeOfDayIsBetween(r.startTime, r.endTime, new Date(), location.timeZone)
                 def boolDay = !r.days || findIn(r.days, dowName) // Truth Table of this mess: http://swiftlet.technology/wp-content/uploads/2016/05/IMG_20160523_150600.jpg
@@ -130,7 +130,6 @@ def gpmHandler(evt) {
             	break
 
             case "Accumulated Flow":
-            	def trigger = []
             	log.debug("Accumulated Flow Test: ${r}")
                 def boolTime = timeOfDayIsBetween(r.startTime, r.endTime, new Date(), location.timeZone)
                 def boolDay = !r.days || findIn(r.days, dowName) // Truth Table of this mess: http://swiftlet.technology/wp-content/uploads/2016/05/IMG_20160523_150600.jpg
@@ -167,16 +166,40 @@ def gpmHandler(evt) {
             	break
 
             case "Continuous Flow":
-                def events = meter.statesBetween("cumulative", timeToday(r.startTime, location.timeZone), timeToday(r.endTime, location.timeZone), [max: 100])
-                events.each { e ->
-                    //log.debug("Event ${e.name}: ${e.value} - ${e.date}")
+            	log.debug("Continuous Flow Test: ${r}")
+            	def contMinutes = 0
+                def boolMode = !r.modes || findIn(r.modes, location.currentMode)
+
+				if(gpm != 0)
+                {
+                	if(state["contHistory${childAppID}"] == [])
+                    {
+                    	state["contHistory${childAppID}"] = new Date()
+                    }
+                    else
+                    {
+                    	def td = now() - Date.parse("yyyy-MM-dd'T'HH:mm:ss'Z'", state["contHistory${childAppID}"]).getTime()
+                        //log.debug("Now minus then: ${td}")
+                        contMinutes = td/60000
+                        log.debug("Minutes of constant flow: ${contMinutes}, since ${state["contHistory${childAppID}"]}")
+                    }
                 }
-            	break
+                
+                if(contMinutes > r.flowMinutes && boolMode)
+                {
+                    sendNotification(childAppID, Math.round(contMinutes))
+                    if(r.dev)
+                    {
+                        def activityApp = getChildById(childAppID)
+                        activityApp.devAction(r.command)
+                    }
+                }
+                break
 
             case "Water Valve Status":
             	log.debug("Water Valve Test: ${r}")
             	def child = getChildById(childAppID)
-                log.debug("Water Valve Child App: ${child.id}")
+                //log.debug("Water Valve Child App: ${child.id}")
                 if(child.isValveStatus(r.valveStatus))
                 {
                     if(gpm > r.gpm)
@@ -195,25 +218,81 @@ def gpmHandler(evt) {
     }
 }
 
+def gpmHandler(evt) {
+	//Date Stuff
+   	def daysOfTheWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    def today = new Date()
+    today.clearTime()
+    Calendar c = Calendar.getInstance();
+    c.setTime(today);
+    int dow = c.get(Calendar.DAY_OF_WEEK);
+    def dowName = daysOfTheWeek[dow-1]
+    
+	def gpm = evt.value
+    def cumulative = meter.latestValue("cumulative")
+    log.debug "GPM Handler: [gpm: ${gpm}, cumulative: ${cumulative}]"
+    def rules = state.rules
+    rules.each { it ->
+        def r = it.rules
+        def childAppID = it.id
+    	switch (r.type) {
+
+			// This is down here because "cumulative" never gets sent in the case of 0 change between messages
+			case "Continuous Flow":
+            	log.debug("Continuous Flow Test (GPM): ${r}")
+            	def contMinutes = 0
+
+				if(gpm == "0.0")
+                {
+                	state["contHistory${childAppID}"] = []
+                }
+                //log.debug("contHistory${childAppID} is ${state["contHistory${childAppID}"]}")
+                break
+
+            default:
+                break
+        }
+	}	
+}
 def sendNotification(device, gpm)
 {
 	def set = getChildById(device).settings()
 	def msg = ""
     if(set.type == "Accumulated Flow")
     {
-    	msg = "Water Flow Warning: \"${set.ruleName}\" is over threshold at ${gpm}gal"
+    	msg = "Water Flow Warning: \"${set.ruleName}\" is over threshold at ${gpm} gallons"
+    }
+    else if(set.type == "Continuous Flow")
+    {
+    	msg = "Water Flow Warning: \"${set.ruleName}\" is over threshold at ${gpm} minutes"
     }
     else
     {
     	msg = "Water Flow Warning: \"${set.ruleName}\" is over threshold at ${gpm}gpm"
     }
     log.debug(msg)
-    if (pushNotification)
+    
+    // Only send notifications as often as the user specifies
+    def lastNotification = 0
+    if(state["notificationHistory${device}"])
     {
-		sendPush(msg)
+    	lastNotification = Date.parse("yyyy-MM-dd'T'HH:mm:ss'Z'", state["notificationHistory${device}"]).getTime()
     }
-    if (smsNotification) {
-        sendSms(phone, msg)
+    def td = now() - lastNotification
+    log.debug("Last Notification at ${state["notificationHistory${device}"]}... ${td/(60*1000)} minutes")
+    if(td/(60*1000) > hoursBetweenNotifications.value * 60)
+    {
+    	log.debug("Sending Notification")
+        if (pushNotification)
+        {
+            sendPush(msg)
+            state["notificationHistory${device}"] = new Date()
+        }
+        if (smsNotification)
+        {
+            sendSms(phone, msg)
+            state["notificationHistory${device}"] = new Date()
+        }
     }
 }
 
@@ -235,4 +314,3 @@ def findIn(haystack, needle)
     }
     return result
 }
-// TODO: implement event handlers

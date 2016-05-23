@@ -42,7 +42,7 @@ def prefsPage() {
                         input(name: "ruleName", type: "text", title: "Rule Name", required: true)
                         input(name: "gpm", type: "decimal", title: "GPM exceeds", required: true, defaultValue: 0.1)
                     }
-                    section ("During") {
+                    section("Only in these modes") {
                         input(name: "modes", type: "mode", title: "select a mode(s)", multiple: true, required: true)
                     }
                     section ("Action") {
@@ -64,10 +64,10 @@ def prefsPage() {
                     section("...and...") {
                     	input(name: "endTime", type: "time", title: "End Time", required: true)
                     }
-                    section("On these days") {
+                    section("Only on these days") {
                     	input(name: "days", type: "enum", title: "Days of the week", required: false, options: daysOfTheWeek, multiple: true)
                     }
-                    section("In these modes") {
+                    section("Only in these modes") {
                     	input(name: "modes", type: "mode", title: "System Modes", required: false, multiple: true)
                     }
                     section ("Action") {
@@ -89,10 +89,10 @@ def prefsPage() {
                     section("...and...") {
                     	input(name: "endTime", type: "time", title: "End Time", required: true)
                     }
-                    section("On these days") {
+                    section("Only on these days") {
                     	input(name: "days", type: "enum", title: "Days of the week", required: false, options: daysOfTheWeek, multiple: true)
                     }
-                    section("In these modes") {
+                    section("Only in these modes") {
                     	input(name: "modes", type: "mode", title: "System Modes", required: false, multiple: true)
                     }
                     section ("Action") {
@@ -106,9 +106,9 @@ def prefsPage() {
                 case "Continuous Flow":
                     section("Threshold settings") {
                         input(name: "ruleName", type: "text", title: "Rule Name", required: true)
-	                    input(name: "flowMinutes", type: "number", title: "Hours of constant flow", required: true, defaultValue: 60)
+	                    input(name: "flowMinutes", type: "number", title: "Minutes of constant flow", required: true, defaultValue: 60)
                     }
-                    section("In these modes") {
+                    section("Only in these modes") {
                     	input(name: "modes", type: "mode", title: "System Modes", required: false, multiple: true)
                     }
                     section ("Action") {
