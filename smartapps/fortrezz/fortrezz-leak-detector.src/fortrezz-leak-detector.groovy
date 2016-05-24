@@ -38,7 +38,7 @@ def page2() {
             {
             	input(name: "phone", type: "phone", title: "Phone number?", required: true)
             }
-            input(name: "hoursBetweenNotifications", type: "number", title: "Hours between notifications", required: false)
+            input(name: "minutesBetweenNotifications", type: "number", title: "Minutes between notifications", required: true, defaultValue: 60)
         }
 
 		log.debug "there are ${childApps.size()} child smartapps"
@@ -280,7 +280,7 @@ def sendNotification(device, gpm)
     }
     def td = now() - lastNotification
     log.debug("Last Notification at ${state["notificationHistory${device}"]}... ${td/(60*1000)} minutes")
-    if(td/(60*1000) > hoursBetweenNotifications.value * 60)
+    if(td/(60*1000) > minutesBetweenNotifications.value)
     {
     	log.debug("Sending Notification")
         if (pushNotification)
