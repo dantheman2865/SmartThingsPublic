@@ -16,7 +16,7 @@
  */
 metadata {
 	// Automatically generated. Make future change here.
-	definition (name: "MIMOlite", namespace: "FortrezZ", author: "FOrtrezZ, LLC") {
+	definition (name: "MIMOlite", namespace: "FortrezZ", author: "FortrezZ, LLC") {
 		capability "Configuration"
 		capability "Switch"
 		capability "Refresh"
