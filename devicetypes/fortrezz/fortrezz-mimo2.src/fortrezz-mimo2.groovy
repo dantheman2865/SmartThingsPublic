@@ -22,7 +22,6 @@ metadata {
         capability "Configuration"
         capability "Refresh"
         
-        
         attribute "powered", "string"
         attribute "relay", "string"
         
