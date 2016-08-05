@@ -41,7 +41,7 @@ metadata {
 
         input ("RelaySwitchDelay", "decimal", title: "Delay between relay switch on and off in seconds. Only Numbers 0 to 3 allowed. 0 value will remove delay and allow relay to function as a standard switch:\nRelay 1", description: "Numbers 0 to 3.1 allowed.", defaultValue: 0, required: false, displayDuringSetup: true)
         input ("RelaySwitchDelay2", "decimal", title: "Relay 2", description: "Numbers 0 to 3.1 allowed.", defaultValue: 0, required: false, displayDuringSetup: true)
-        input ("Sig1AD", "bool", title: "Switch on for analog, switch off for digital:\nSIG1", required: false, displayDuringSetup: true)
+        input ("Sig1AD", "bool", title: "Switch off for digital, on for analog:\nSIG1", required: false, displayDuringSetup: true)
         input ("Sig2AD", "bool", title: "SIG2", required: false, displayDuringSetup: true)
         } // the range would be 0 to 3.1, but the range value would not accept 3.1, only whole numbers (i tried paranthesis and fractions too. :( )
 
@@ -157,22 +157,32 @@ def zwaveEvent(int endPoint, physicalgraph.zwave.commands.switchbinaryv1.SwitchB
 def zwaveEvent (int endPoint, physicalgraph.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd) // sensorMultilevelReport is used to report the value of the analog voltage for SIG1
 {
 	def map = [:]
+    def stdEvent = [:]
     def voltageVal = CalculateVoltage(cmd.scaledSensorValue) // saving the scaled Sensor Value used to enter into a large formula to determine actual voltage value
     if (endPoint == 1) //endPoint 1 is for SIG1
     {
     	if (state.AD1 == false) // state.AD1 is  to determine which state the anaDig1 tile should be in (either analogue or digital mode)
         {
         	map.name = "anaDig1"
+            stdEvent.name = "contact"
             if (voltageVal < 1) { //since the closed circuit of the inputs of SIG1 is 0 volts, have a range less than 1 volt seems adequate.
             	map.value = "closed"
+                stdEvent.value = "closed"
             }
-            else {map.value = "open"} 
+            else
+            {
+            	map.value = "open"
+                stdEvent.value = "open"
+            } 
         }
         else //or state.AD1 is true for analogue mode
         {
         	map.name = "anaDig1"
+            stdEvent.name = "voltage"
         	map.value = voltageVal
+            stdEvent.value = voltageVal
         	map.unit = "v"
+            stdEvent.unit = "v"
         }
     }
     else if (endPoint == 2) // endpoint 2 is for SIG2
@@ -180,19 +190,29 @@ def zwaveEvent (int endPoint, physicalgraph.zwave.commands.sensormultilevelv5.Se
         if (state.AD2 == false)
         {
         	map.name = "anaDig2"
+            stdEvent.name = "contact2"
             if (voltageVal < 1) {
             	map.value = "closed"
+                stdEvent.value = "closed"
             }
-            else {map.value = "open"} 
+            else
+            {
+            	map.value = "open"
+                stdEvent.value = "open"
+            } 
         }
         else
         {
         	map.name = "anaDig2"
+            stdEvent.name = "voltage2"
         	map.value = voltageVal
+            stdEvent.value = voltageVal
         	map.unit = "v"
+            stdEvent.unit = "v"
         }
     }
 	log.debug "sent a SensorMultilevelReport $map.name $map.value"
+    sendEvent(stdEvent)
     return map
 }
 
