@@ -96,6 +96,7 @@ def parse(String description) {
     	sendEvent(name: "powered", value: "powerOn", descriptionText: "$device.displayName regained power")
     }
 	if (cmd) {
+    	log.debug(cmd)
 		result = createEvent(zwaveEvent(cmd))
 	}
     log.debug "Parse returned ${result?.descriptionText} $cmd.CMD"
