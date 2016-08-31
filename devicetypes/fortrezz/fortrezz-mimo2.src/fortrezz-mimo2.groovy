@@ -151,13 +151,13 @@ def zwaveEvent(int endPoint, physicalgraph.zwave.commands.switchbinaryv1.SwitchB
     else if (endPoint == 4)
     {
     	if (cmd.value)
-    		{map.value = "on2"}
+    		{map.value = "on"}
     	else
-    		{map.value = "off2"}
+    		{map.value = "off"}
         map.name = "switch2"
         sendEvent(name: "relay2", value: "$map.value")
         log.debug "sent a SwitchBinary command $map.name $map.value" // the map is only used for debug messages. not for the return command to the device
-        return [name: "switch2", value: cmd.value ? "on2" : "off2"]
+        return [name: "switch2", value: cmd.value ? "on" : "off"]
     }
 }
    
