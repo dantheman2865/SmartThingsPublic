@@ -96,10 +96,16 @@ def parse(String description) {
     	sendEvent(name: "powered", value: "powerOn", descriptionText: "$device.displayName regained power")
     }
 	if (cmd) {
-    	log.debug(cmd)
-		result = createEvent(zwaveEvent(cmd))
+    	def eventReturn = zwaveEvent(cmd)
+        log.debug("Returned Event: ${eventReturn}")
+        if(eventReturn in physicalgraph.device.HubMultiAction) {
+        	result = eventReturn
+        }
+        else {
+        	result = createEvent(eventReturn)
+        }
 	}
-    log.debug "Parse returned ${result?.descriptionText} $cmd.CMD"
+    log.debug "Parse returned ${result} $cmd.CMD"
 	return result
 }
 
@@ -344,6 +350,16 @@ def refresh() {
          encap(zwave.sensorMultilevelV5.sensorMultilevelGet(), 2),// requests a report of the anologue input voltage for SIG2
          encap(zwave.switchBinaryV1.switchBinaryGet(), 3), //requests a report of the relay to make sure that it changed for Relay 1
          encap(zwave.switchBinaryV1.switchBinaryGet(), 4), //requests a report of the relay to make sure that it changed for Relay 2
+       ],200)
+}
+
+def refreshZWave() {
+	log.debug "Refresh (Z-Wave Response)"
+	return delayBetween([
+         encap(zwave.sensorMultilevelV5.sensorMultilevelGet(), 1),// requests a report of the anologue input voltage for SIG1
+         encap(zwave.sensorMultilevelV5.sensorMultilevelGet(), 2),// requests a report of the anologue input voltage for SIG2
+         encap(zwave.switchBinaryV1.switchBinaryGet(), 3), //requests a report of the relay to make sure that it changed for Relay 1
+         encap(zwave.switchBinaryV1.switchBinaryGet(), 4) //requests a report of the relay to make sure that it changed for Relay 2
        ],200)
 }
 
