@@ -64,6 +64,14 @@ def initialize(){
             log.error "Error creating device: ${e}"
         }
     }
+    
+    getChildDevices().each {
+    	def test = it
+        def search = settings.devices.find { getChildDevice(it.id).id == test.id }
+        if(!search) {
+        	removeChildDevices(test)
+        }
+    }
 }
 
 def uninstalled() {
