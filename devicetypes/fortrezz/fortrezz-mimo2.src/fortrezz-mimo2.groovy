@@ -53,8 +53,8 @@ metadata {
 
         }
          standardTile("switch2", "device.switch2", width: 2, height: 2, inactiveLabel: false) {
-            state "on2", label: "Relay 2 On", action: "off2", icon: "http://swiftlet.technology/wp-content/uploads/2016/06/Switch-On-104-edit.png", backgroundColor: "#53a7c0"
-			state "off2", label: 'Relay 2 Off', action: "on2", icon: "http://swiftlet.technology/wp-content/uploads/2016/06/Switch-Off-104-edit.png", backgroundColor: "#ffffff"
+            state "on", label: "Relay 2 On", action: "off2", icon: "http://swiftlet.technology/wp-content/uploads/2016/06/Switch-On-104-edit.png", backgroundColor: "#53a7c0"
+			state "off", label: 'Relay 2 Off', action: "on2", icon: "http://swiftlet.technology/wp-content/uploads/2016/06/Switch-Off-104-edit.png", backgroundColor: "#ffffff"
         }
         standardTile("anaDig1", "device.anaDig1", inactiveLabel: false) {
 			state "open", label: '${name}', icon: "st.contact.contact.open", backgroundColor: "#ffa81e"
@@ -97,7 +97,6 @@ def parse(String description) {
     }
 	if (cmd) {
     	def eventReturn = zwaveEvent(cmd)
-        log.debug("Returned Event: ${eventReturn}")
         if(eventReturn in physicalgraph.device.HubMultiAction) {
         	result = eventReturn
         }
@@ -172,7 +171,7 @@ def zwaveEvent (int endPoint, physicalgraph.zwave.commands.sensormultilevelv5.Se
         {
         	map.name = "anaDig1"
             stdEvent.name = "contact"
-            if (voltageVal < 1) { //since the closed circuit of the inputs of SIG1 is 0 volts, have a range less than 1 volt seems adequate.
+            if (voltageVal < 2) { // DK changed to 2v to follow LED behavior
             	map.value = "closed"
                 stdEvent.value = "closed"
             }
@@ -198,7 +197,7 @@ def zwaveEvent (int endPoint, physicalgraph.zwave.commands.sensormultilevelv5.Se
         {
         	map.name = "anaDig2"
             stdEvent.name = "contact2"
-            if (voltageVal < 1) {
+            if (voltageVal < 2) {
             	map.value = "closed"
                 stdEvent.value = "closed"
             }
@@ -258,7 +257,7 @@ def zwaveEvent(physicalgraph.zwave.Command cmd) {
 
 def CalculateVoltage(ADCvalue) // used to calculate the voltage based on the collected Scaled sensor value of the multilevel sensor event
 {
-    def volt = (((6.60*(10**-17))*(ADCvalue**5)) - ((5.46*(10**-13))*(ADCvalue**4)) + ((1.77*(10**-9))*(ADCvalue**3)) - ((2.07*(10**-6))*(ADCvalue**2)) + ((1.57*(10**-3))*(ADCvalue)) - (5.53*(10**-3)))
+    def volt = (((2.396*(10**-17))*(ADCvalue**5)) - ((1.817*(10**-13))*(ADCvalue**4)) + ((5.087*(10**-10))*(ADCvalue**3)) - ((5.868*(10**-7))*(ADCvalue**2)) + ((9.967*(10**-4))*(ADCvalue)) - (1.367*(10**-2)))
 	return volt.round(1)
 }
 	
