@@ -45,22 +45,25 @@ metadata {
 }
 
 def parse(String description) {
-	def results = []
+	def result = []
 	if (description.startsWith("Err")) {
-	    results << createEvent(descriptionText:description, displayed:true)
+	    result << createEvent(descriptionText:description, displayed:true)
 	} else {
 		def cmd = zwave.parse(description, [ 0x80: 1, 0x84: 1, 0x71: 2, 0x72: 1 ])
 		if (cmd) {
-			zwaveEvent(cmd, results)
+			result = zwaveEvent(cmd)
 		}
 	}
-	log.debug "\"$description\" parsed to ${results.inspect()}"
-	return results
+	log.debug "\"$description\" parsed to ${result.inspect()}"
+	return result
 }
 
 
 // Notification Report from SPM
-def zwaveEvent(physicalgraph.zwave.commands.alarmv2.AlarmReport cmd, results) {
+def zwaveEvent(physicalgraph.zwave.commands.alarmv2.AlarmReport cmd) {
+	def results = []
+	def lastAlarmName = state.lastAlarmName ?: ""
+	def lastAlarmTime = state.lastAlarmTime ?: 0
     def powerAlert = device.currentValue("powerAlert")
     if (powerAlert == null)
     {
@@ -72,7 +75,7 @@ def zwaveEvent(physicalgraph.zwave.commands.alarmv2.AlarmReport cmd, results) {
     	sumpAlert = 0
     }
 
-if (cmd.zwaveAlarmType == 8) {
+	if (cmd.zwaveAlarmType == 8) {
     	if (cmd.zwaveAlarmEvent == 2) {
         	results << createEvent(name: "alarmState", value: "acMainsDisconnected", descriptionText: "AC Mains Disconnected")
             powerAlert = powerAlert + 1
@@ -140,15 +143,34 @@ if (cmd.zwaveAlarmType == 8) {
     {
     	sendEvent(name: "alarm", value: "clear", displayed: false)
     }
-    results
+    def now = new Date()
+    def thisName = results.first().value
+
+    state.lastAlarmName = thisName
+    state.lastAlarmTime = now.getTime()
+
+	//log.debug(results.first().value)
+    def timeDelta = (now.getTime() - lastAlarmTime)/1000
+    log.debug("Last Alarm, ${lastAlarmName}, was ${timeDelta}s ago")
+    if(timeDelta <= 5 && thisName == lastAlarmName)
+    {
+    	return [:]
+    }
+    else
+    {
+    	return results
+    }
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.wakeupv1.WakeUpNotification cmd, results) {
+def zwaveEvent(physicalgraph.zwave.commands.wakeupv1.WakeUpNotification cmd) {
+	def results = []
 	results << new physicalgraph.device.HubAction(zwave.wakeUpV1.wakeUpNoMoreInformation().format())
 	results << createEvent(descriptionText: "$device.displayName woke up", isStateChange: false)
+    return results
 }
 
-def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd, results) {
+def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd) {
+	def results = []
 	def map = [ name: "battery", unit: "%" ]
 	if (cmd.batteryLevel == 0xFF) {
 		map.value = 1
@@ -157,11 +179,14 @@ def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd, results
 		map.value = cmd.batteryLevel
 	}
 	results << createEvent(map)
+    return results
 }
 
-def zwaveEvent(physicalgraph.zwave.Command cmd, results) {
+def zwaveEvent(physicalgraph.zwave.Command cmd) {
+	def results = []
 	def event = [ displayed: false ]
 	event.linkText = device.label ?: device.name
 	event.descriptionText = "$event.linkText: $cmd"
 	results << createEvent(event)
+    return results
 }
