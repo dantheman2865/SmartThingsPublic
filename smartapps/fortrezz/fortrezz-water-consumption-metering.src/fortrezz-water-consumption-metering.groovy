@@ -41,6 +41,10 @@ def page2() {
             }
         }
         
+        section("End time of all water usage goal periods") {
+        	input(name: "alertTime", type: "time", required: true)
+            }
+        
         section("Billing info") {
         	input(name: "unitType", type: "enum", title: "Water unit used in billing", description: null, defaultValue: "Gallons", required: true, submitOnChange: true, options: waterTypes())
             input(name: "costPerUnit", type: "decimal", title: "Cost of water unit in billing", description: null, defaultValue: 0, required: true, submitOnChange: true)
@@ -57,19 +61,7 @@ def page2() {
         }
         
 
-        
-        //unschedule()
-        //state.scheduleTime = false
-		//if (state.scheduleTime != true)		// we created this 'if' statement to prevent another schedule being made whenever the user opens the smartapp
-        //{												//here we set the schedule to allow us to check the time to see if any goal periods have finished
-        	schedule("0 0 0 * * ? *", goalSearch) // we use cron scheduling to use the function 'goalSearch' every minute
-        	//schedule("0 0/5 * 1/1 * ? *", goalSearch) // we use cron scheduling to use the function 'goalSearch' every minute
-            //state.scheduleTime = true}
 
-        
-
-        
-       
 
 		log.debug "there are ${childApps.size()} child smartapps"
         
@@ -86,6 +78,7 @@ def page2() {
         	def q = myItem.rules
         	for (item2 in state.rules) {
                 def r = item2.rules
+                log.debug(r.alertType)
             	if (myItem.id == item2.id) { //I am comparing the previous array to current array and checking to see if any new goals have been made.  
                 	match = true
                     if (q.type == r.type){
@@ -121,6 +114,15 @@ def page2() {
     }
 }
 
+def parseAlerTimeAndStartNewSchedule(myAlert)
+        {
+        	def endTime = myAlert.split("T")
+            def endHour = endTime[1].split(":")[0] // parsing the time stamp which is of this format: 2016-12-13T16:25:00.000-0500
+            def endMinute = endTime[1].split(":")[1]
+            schedule("0 ${endMinute} ${endHour} 1/1 * ? *", goalSearch) // creating a schedule to launch goalSearch every day at a user defined time - default is at midnight
+            log.debug("new schedule created at ${endHour} : ${endMinute}")
+        }
+
 def convertToGallons(myUnit) // does what title says - takes whatever unit in string form and converts it to gallons to create a ratio. the result is returned
 {
 	switch (myUnit){
@@ -150,16 +152,16 @@ def goalSearch(){
     def fullDateTime = dateTime.format("yyyy-MM-dd HH:mm:ss", location.timeZone)
     def mySplit = fullDateTime.split()
 
-	log.debug("goalSearch: ${fullDateTime}")
+	log.debug("goalSearch: ${fullDateTime}") // 2016-12-09 14:59:56
 
 	// ok, so I ran into a problem here. I wanted to simply do | state.dateSplit = mySplit[0].split("-") | but I kept getting this error in the log "java.lang.UnsupportedOperationException" So I split it to variables and then individually placed them into the state array
     def dateSplit = mySplit[0].split("-")
     def timeSplit = mySplit[1].split(":")
     state.dateSplit = []
     state.timeSplit = []
-    for (i in mySplit0){
-    	state.dateSplit << i}
-    for (g in mySplit1){
+    for (i in dateSplit){
+    	state.dateSplit << i} // unnecessary?
+    for (g in timeSplit){
     	state.timeSplit << g}  
     def dayOfWeek = Date.parse("yyyy-MM-dd", mySplit[0]).format("EEEE")
     state.debug = false
@@ -172,51 +174,44 @@ def goalSearch(){
     
 
 def dailyGoalSearch(dateSplit, timeSplit){ // because of our limitations of schedule() we had to create 3 separate methods for the existing goal period of day, month, and year. they are identical other than their time periods.
-
-	if (timeSplit[0] == "00" && timeSplit[1] == "00" || state.debug == true){ //  && timeSplit[2] == "00" NOT ACCURATE TO SECONDS
-    	def myRules = state.rules // also, these methods are called when our goal period ends. we filter out the goals that we want and then invoke a separate method called schedulGoal to inform the user that the goal ended and produce some results based on their water usage.
-         for (it in myRules){
+	def myRules = state.rules // also, these methods are called when our goal period ends. we filter out the goals that we want and then invoke a separate method called schedulGoal to inform the user that the goal ended and produce some results based on their water usage.
+        for (it in myRules){
             def r = it.rules
             if (r.type == "Daily Goal") {
-                scheduleGoal(r.measurementType, it.id, r.waterGoal, r.type)
+				scheduleGoal(r.measurementType, it.id, r.waterGoal, r.type, 0.03333)
             }
-        }
-    }	
+        }    	
 }
 def weeklyGoalSearch(dateSplit, timeSplit, dayOfWeek){
-	if (timeSplit[0] == "00" && timeSplit[1] == "00" && dayOfWeek == "Sunday" || state.debug == true){ //  && timeSplit[2] == "00" NOT ACCURATE TO SECONDS
-    	def myRules = state.rules // also, these methods are called when our goal period ends. we filter out the goals that we want and then invoke a separate method called schedulGoal to inform the user that the goal ended and produce some results based on their water usage.
-         for (it in myRules){
+    def myRules = state.rules // also, these methods are called when our goal period ends. we filter out the goals that we want and then invoke a separate method called schedulGoal to inform the user that the goal ended and produce some results based on their water usage.
+        for (it in myRules){
             def r = it.rules
             if (r.type == "Weekly Goal") {
-                scheduleGoal(r.measurementType, it.id, r.waterGoal, r.type)
+            	if (dayOfWeek == "Sunday" || state.debug == true){ 
+                	scheduleGoal(r.measurementType, it.id, r.waterGoal, r.type, 0.23333)}
             }
-        }
-    }	
+        }    	
 }
-def monthlyGoalSearch(dateSplit, timeSplit){
-	if (timeSplit[0] == "00" && timeSplit[1] == "00" && dateSplit[2] == "01" || state.debug == true){ //  && timeSplit[2] == "00" NOT ACCURATE TO SECONDS
-    	def myRules = state.rules // also, these methods are called when our goal period ends. we filter out the goals that we want and then invoke a separate method called schedulGoal to inform the user that the goal ended and produce some results based on their water usage.
-         for (it in myRules){
+def monthlyGoalSearch(dateSplit, timeSplit){  
+	def myRules = state.rules // also, these methods are called when our goal period ends. we filter out the goals that we want and then invoke a separate method called schedulGoal to inform the user that the goal ended and produce some results based on their water usage.
+        for (it in myRules){
             def r = it.rules
             if (r.type == "Monthly Goal") {
-                scheduleGoal(r.measurementType, it.id, r.waterGoal, r.type)
+				if (dateSplit[2] == "01" || state.debug == true){ 
+                	scheduleGoal(r.measurementType, it.id, r.waterGoal, r.type, 0.23333)}
             }
-        }
-    }	
+        }    
 }
-    
-
-def scheduleGoal(measureType, goalID, wGoal, goalType){ // this is where the magic happens. after a goal period has finished this method is invoked and the user gets a notification of the results of the water usage over their period.
+def scheduleGoal(measureType, goalID, wGoal, goalType, fixedFeeRatio){ // this is where the magic happens. after a goal period has finished this method is invoked and the user gets a notification of the results of the water usage over their period.
 	def cost = 0
     def f = 1.0f
     def topCumulative = meter.latestValue("cumulative") // pulling the current cumulative value from the FMI for calculating  how much water we have used since starting the goal.
      if (state["Start${goalID}"] == null){state["Start${goalID}"] = topCumulative} // we create another object attached to our goal called 'start' and store the existing cumulation on the FMI device so we know at what mileage we are starting at for this goal. this is useful for determining how much water is used during the goal period.
     def curCumulation = waterConversionPreference(topCumulative, measureType) - waterConversionPreference(state["Start${goalID}"], measureType)
-
+	
     
 	if (state.costRatio){
-    	cost = costConversionPreference(state.costRatio,measureType) * curCumulation * f + state.fixedFee// determining the cost of the water that they have used over the period ( i had to create a variable 'f' and make it a float and multiply it to make the result a float. this is because the method .round() requires it to be a float for some reasons and it was easier than typecasting the result to a float.
+    	cost = costConversionPreference(state.costRatio,measureType) * curCumulation * f + (state.fixedFee * fixedFeeRatio)// determining the cost of the water that they have used over the period ( i had to create a variable 'f' and make it a float and multiply it to make the result a float. this is because the method .round() requires it to be a float for some reasons and it was easier than typecasting the result to a float.
     }
     def percentage = (curCumulation / wGoal) * 100 * f
     if (costPerUnit != 0) {
@@ -258,6 +253,13 @@ def installed() { // when the app is first installed - do something
 
 def updated() { // whevenever the app is updated in any way by the user and you press the 'done' button on the top right of the app - do something
 	log.debug "Updated with settings: ${settings}"
+    
+    if (alertTime != state.alertTime) // we created this 'if' statement to prevent another schedule being made whenever the user opens the smartapp
+    {
+        unschedule() //unscheduling is a good idea here because we don't want multiple schedules happening and this function cancles all schedules
+        parseAlerTimeAndStartNewSchedule(alertTime) // we use cron scheduling to use the function 'goalSearch' every minute
+        state.alarmTime = alarmTime // setting state.alarmTime prevents a new schedule being made whenever the user opens the smartapp
+    }
 
 	unsubscribe()
 	initialize()
@@ -376,16 +378,8 @@ def costConversionPreference(cumul, measurementType1) // convert the current cum
 def notify(myMsg) // method for both push notifications and for text messaging.
 {
 	log.debug("Sending Notification")
-    if (pushNotification)
-    {
-        sendPush(myMsg)
-        state["notificationHistory${device}"] = new Date()
-    }
-    if (smsNotification)
-    {
-        sendSms(phone, myMsg)
-        state["notificationHistory${device}"] = new Date()
-    }
+    if (pushNotification)	{sendPush(myMsg)} else {sendNotificationEvent(myMsg)}
+    if (smsNotification)	{sendSms(phone, myMsg)}
 }
 
 

@@ -53,6 +53,7 @@ def prefsPage() {
                     section("Threshold settings") {
                         input(name: "waterGoal", type: "decimal", title: "Daily ${measurementType} Goal", required: true, defaultValue: 0.5)
                     }
+
                                       
                     break
 
@@ -62,6 +63,7 @@ def prefsPage() {
                     section("Threshold settings") {
                         input(name: "waterGoal", type: "decimal", title: "Weekly ${measurementType} Goal", required: true, defaultValue: 0.1)
                     }
+
                     
                     break
 
@@ -71,6 +73,7 @@ def prefsPage() {
                     section("Threshold settings") {
                         input(name: "waterGoal", type: "decimal", title: "Monthly ${measurementType} Goal", required: true, defaultValue: 0.1)
                     }
+
                     
                     break
 
