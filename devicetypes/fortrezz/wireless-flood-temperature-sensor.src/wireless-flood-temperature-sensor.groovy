@@ -142,18 +142,23 @@ def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cm
 	def map = [:]
 	if (cmd.notificationType == physicalgraph.zwave.commands.notificationv3.NotificationReport.NOTIFICATION_TYPE_WATER) {
 		map.name = "water"
-		map.value = cmd.alarmLevel ? "wet" : "dry"
+        if(cmd.event == 2) {
+        	map.value = "wet"
+        }
+        else if (cmd.event == 0) {
+        	map.value = "dry"
+        }
 		map.descriptionText = "${device.displayName} is ${map.value}"
 	}
 	if(cmd.notificationType ==  physicalgraph.zwave.commands.notificationv3.NotificationReport.NOTIFICATION_TYPE_HEAT) {
 		map.name = "temperatureState"
-		if(cmd.zwaveAlarmEvent == 1) { map.value = "overheated"}
-		if(cmd.zwaveAlarmEvent == 2) { map.value = "overheated"}
-		if(cmd.zwaveAlarmEvent == 3) { map.value = "changing temperature rapidly"}
-		if(cmd.zwaveAlarmEvent == 4) { map.value = "changing temperature rapidly"}
-		if(cmd.zwaveAlarmEvent == 5) { map.value = "freezing"}
-		if(cmd.zwaveAlarmEvent == 6) { map.value = "freezing"}
-		if(cmd.zwaveAlarmEvent == 254) { map.value = "normal"}
+		if(cmd.notificationType == 1) { map.value = "overheated"}
+		if(cmd.notificationType == 2) { map.value = "overheated"}
+		if(cmd.notificationType == 3) { map.value = "changing temperature rapidly"}
+		if(cmd.notificationType == 4) { map.value = "changing temperature rapidly"}
+		if(cmd.notificationType == 5) { map.value = "freezing"}
+		if(cmd.notificationType == 6) { map.value = "freezing"}
+		if(cmd.notificationType == 254) { map.value = "normal"}
 		map.descriptionText = "${device.displayName} is ${map.value}"
 	}
 
