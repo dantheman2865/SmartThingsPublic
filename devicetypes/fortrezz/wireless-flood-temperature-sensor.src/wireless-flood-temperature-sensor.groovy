@@ -94,7 +94,7 @@ def parse(String description) {
 			}
 			result << new physicalgraph.device.HubAction(zwave.wakeUpV1.wakeUpNoMoreInformation().format())
 		}
-        if (parsedZwEvent.CMD == "7105") {				//Unit sent a power loss report
+        if (parsedZwEvent.CMD == "7108") {				//Unit sent a power loss report
             log.debug "Device lost power"
             result << createEvent(name: "powered", value: "powerOff", descriptionText: "$device.displayName lost power")
         } else {
@@ -140,12 +140,12 @@ def zwaveEvent(physicalgraph.zwave.commands.batteryv1.BatteryReport cmd) {
 def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cmd)
 {
 	def map = [:]
-	if (cmd.zwaveAlarmType == physicalgraph.zwave.commands.notificationv3.NotificationReport.NOTIFICATION_TYPE_WATER) {
+	if (cmd.notificationType == physicalgraph.zwave.commands.notificationv3.NotificationReport.NOTIFICATION_TYPE_WATER) {
 		map.name = "water"
 		map.value = cmd.alarmLevel ? "wet" : "dry"
 		map.descriptionText = "${device.displayName} is ${map.value}"
 	}
-	if(cmd.zwaveAlarmType ==  physicalgraph.zwave.commands.notificationv3.NotificationReport.NOTIFICATION_TYPE_HEAT) {
+	if(cmd.notificationType ==  physicalgraph.zwave.commands.notificationv3.NotificationReport.NOTIFICATION_TYPE_HEAT) {
 		map.name = "temperatureState"
 		if(cmd.zwaveAlarmEvent == 1) { map.value = "overheated"}
 		if(cmd.zwaveAlarmEvent == 2) { map.value = "overheated"}
