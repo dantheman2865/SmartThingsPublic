@@ -94,7 +94,7 @@ def parse(String description) {
 			}
 			result << new physicalgraph.device.HubAction(zwave.wakeUpV1.wakeUpNoMoreInformation().format())
 		}
-        if (cmd.CMD == "7105") {				//Unit sent a power loss report
+        if (parsedZwEvent.CMD == "7105") {				//Unit sent a power loss report
             log.debug "Device lost power"
             result << createEvent(name: "powered", value: "powerOff", descriptionText: "$device.displayName lost power")
         } else {
