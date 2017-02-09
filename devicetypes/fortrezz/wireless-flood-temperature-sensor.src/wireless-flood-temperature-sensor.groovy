@@ -82,8 +82,8 @@ def poll() {
 	// Get Temperature
     // Get Wet Status
     return delayBetween([
-        zwave.sensorMultilevelV5.sensorMultilevelGet(sensorType: SENSOR_TYPE_TEMPERATURE_VERSION_1).format(),
-        zwave.notificationV3.notificationGet(notificationType: NOTIFICATION_TYPE_WATER).format()
+        zwave.sensorMultilevelV5.sensorMultilevelGet().format(),
+        zwave.notificationV3.notificationGet().format()
     ], 200)
 }
 
