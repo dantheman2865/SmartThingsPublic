@@ -63,6 +63,7 @@ metadata {
 			state "battery", label:'${currentValue}% battery', unit:""
 		}
         standardTile("powered", "device.powered", width: 2, height: 2, inactiveLabel: false) {
+        	// state blank for non-mains
 			state "powerOn", label: "Power On", icon: "st.switches.switch.on", backgroundColor: "#79b821"
 			state "powerOff", label: "Power Off", icon: "st.switches.switch.off", backgroundColor: "#ffa81e"
 		}
@@ -75,6 +76,15 @@ metadata {
 		main (["water", "temperatureState"])
 		details(["water", "temperature", "temperatureState", "battery", "systemStatus", "poll", "powered"])
 	}
+}
+
+def poll() {
+	// Get Temperature
+    // Get Wet Status
+    return delayBetween([
+        zwave.sensorMultilevelV5.sensorMultilevelGet(sensorType: SENSOR_TYPE_TEMPERATURE_VERSION_1).format(),
+        zwave.notificationV3.notificationGet(notificationType: NOTIFICATION_TYPE_WATER).format()
+    ], 200)
 }
 
 def parse(String description) {
@@ -94,12 +104,6 @@ def parse(String description) {
 			}
 			result << new physicalgraph.device.HubAction(zwave.wakeUpV1.wakeUpNoMoreInformation().format())
 		}
-        if (parsedZwEvent.CMD == "7108") {				//Unit sent a power loss report
-            log.debug "Device lost power"
-            result << createEvent(name: "powered", value: "powerOff", descriptionText: "$device.displayName lost power")
-        } else {
-            result << createEvent(name: "powered", value: "powerOn", descriptionText: "$device.displayName regained power")
-        }
     result << createEvent( zwaveEvent(parsedZwEvent) )
 	}
 	if(!result) result = [ descriptionText: parsedZwEvent, displayed: false ]
@@ -142,7 +146,7 @@ def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cm
 	def map = [:]
 	if (cmd.notificationType == physicalgraph.zwave.commands.notificationv3.NotificationReport.NOTIFICATION_TYPE_WATER) {
 		map.name = "water"
-        if(cmd.event == 2) {
+        if(cmd.event == 1 || cmd.event == 2) {
         	map.value = "wet"
         }
         else if (cmd.event == 0) {
@@ -152,13 +156,20 @@ def zwaveEvent(physicalgraph.zwave.commands.notificationv3.NotificationReport cm
 	}
 	if(cmd.notificationType ==  physicalgraph.zwave.commands.notificationv3.NotificationReport.NOTIFICATION_TYPE_HEAT) {
 		map.name = "temperatureState"
-		if(cmd.notificationType == 1) { map.value = "overheated"}
-		if(cmd.notificationType == 2) { map.value = "overheated"}
-		if(cmd.notificationType == 3) { map.value = "changing temperature rapidly"}
-		if(cmd.notificationType == 4) { map.value = "changing temperature rapidly"}
-		if(cmd.notificationType == 5) { map.value = "freezing"}
-		if(cmd.notificationType == 6) { map.value = "freezing"}
-		if(cmd.notificationType == 254) { map.value = "normal"}
+		if(cmd.event == 1 || cmd.event == 2) { map.value = "overheated"}
+		if(cmd.event == 3 || cmd.event == 4) { map.value = "changing temperature rapidly"}
+		if(cmd.event == 5 || cmd.event == 5) { map.value = "freezing"}
+		if(cmd.event == 0 || cmd.event == 254) { map.value = "normal"}
+		map.descriptionText = "${device.displayName} is ${map.value}"
+	}
+	if (cmd.notificationType == physicalgraph.zwave.commands.notificationv3.NotificationReport.NOTIFICATION_TYPE_POWER_MANAGEMENT) {
+		map.name = "powered"
+        if(cmd.event == 2 || cmd.event == 0x0B) {
+        	map.value = "powerOff"
+        }
+        else if (cmd.event == 3 || cmd.event == 0x0D) {
+        	map.value = "powerOn"
+        }
 		map.descriptionText = "${device.displayName} is ${map.value}"
 	}
 
