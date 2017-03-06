@@ -41,7 +41,7 @@ def page2() {
             }
         }
         
-        section("End time of all water usage goal periods") {
+        section("Start/End time of all water usage goal periods") {
         	input(name: "alertTime", type: "time", required: true)
             }
         
