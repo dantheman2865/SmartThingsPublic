@@ -19,9 +19,9 @@ metadata {
         capability "Temperature Measurement"
         capability "Polling"
 
-        fingerprint mfr: "0x0084", prod: "0x0073", model: "0x0005"
-        fingerprint mfr: "0x0084", prod: "0x0073", model: "0x020C"
-        fingerprint mfr: "0x0084", prod: "0x0073", model: "0x000C"
+        fingerprint mfr: "0084", prod: "0073"
+        //fingerprint mfr: "0084", prod: "0073", model: "020C"
+        //fingerprint mfr: "0084", prod: "0073", model: "000C"
         //zw:S type:0701 mfr:0084 prod:0073 model:0005 ver:0.05 zwv:4.38 lib:06 cc:5E,86,72,5A,73,20,80,71,85,59,84,31,70 role:06 ff:8C05 ui:8C05
 	}
 
@@ -85,7 +85,8 @@ def poll() {
     // Get Wet Status
     return delayBetween([
         zwave.sensorMultilevelV5.sensorMultilevelGet(sensorType:1).format(),
-        zwave.notificationV3.notificationGet().format()
+        zwave.notificationV3.notificationGet().format(),
+        zwave.batteryV1.batteryGet().format()
     ], 200)
 }
 
